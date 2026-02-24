@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>回忆录</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container home-page">
+        <header class="home-header">
+            <h1>回忆录</h1>
+            <p class="subtitle">记录您的人生故事</p>
+        </header>
+
+        <main class="welcome-section">
+            <div class="welcome-text">
+                <p>您好，我是来听您讲故事的。</p>
+                <p>无论是童年往事，还是人生感悟，</p>
+                <p>我都很想听您说说。</p>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="startNewChat()">开始讲述</button>
+                <button class="btn btn-secondary" onclick="viewMemoirs()">我的回忆录</button>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        window.onload = function() {
+            initApp();
+        };
+    </script>
+</body>
+</html>

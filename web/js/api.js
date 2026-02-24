@@ -1,0 +1,130 @@
+// API 配置
+const API_BASE_URL = 'http://localhost:8001/api';
+
+// API 请求封装
+const api = {
+    // 通用请求方法
+    async request(endpoint, options = {}) {
+        const url = `${API_BASE_URL}${endpoint}`;
+        const config = {
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            ...options,
+        };
+
+        try {
+            const response = await fetch(url, config);
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || '请求失败');
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('API Error:', error);
+            throw error;
+        }
+    },
+
+    // 用户相关
+    user: {
+        async create(nickname = null) {
+            return api.request('/user/create', {
+                method: 'POST',
+                body: JSON.stringify({ nickname }),
+            });
+        },
+
+        async get(userId) {
+            return api.request(`/user/${userId}`);
+        },
+
+        async updateSettings(userId, settings) {
+            return api.request(`/user/${userId}/settings`, {
+                method: 'PUT',
+                body: JSON.stringify(settings),
+            });
+        },
+    },
+
+    // 对话相关
+    conversation: {
+        async start(userId) {
+            return api.request(`/conversation/start?user_id=${userId}`, {
+                method: 'POST',
+            });
+        },
+
+        async chat(conversationId, message) {
+            return api.request(`/conversation/${conversationId}/chat`, {
+                method: 'POST',
+                body: JSON.stringify({ message }),
+            });
+        },
+
+        async end(conversationId) {
+            return api.request(`/conversation/${conversationId}/end`, {
+                method: 'POST',
+            });
+        },
+
+        async get(conversationId) {
+            return api.request(`/conversation/${conversationId}`);
+        },
+
+        async list(userId) {
+            return api.request(`/conversation/user/${userId}/list`);
+        },
+    },
+
+    // 回忆录相关
+    memoir: {
+        async generate(userId, conversationId, title = null, perspective = '第一人称') {
+            return api.request(`/memoir/generate?user_id=${userId}`, {
+                method: 'POST',
+                body: JSON.stringify({ conversation_id: conversationId, title, perspective }),
+            });
+        },
+
+        async list(userId) {
+            return api.request(`/memoir/user/${userId}/list`);
+        },
+
+        async get(memoirId) {
+            return api.request(`/memoir/${memoirId}`);
+        },
+
+        async update(memoirId, data) {
+            return api.request(`/memoir/${memoirId}`, {
+                method: 'PUT',
+                body: JSON.stringify(data),
+            });
+        },
+
+        async delete(memoirId) {
+            return api.request(`/memoir/${memoirId}`, {
+                method: 'DELETE',
+            });
+        },
+    },
+};
+
+// 本地存储工具
+const storage = {
+    get(key) {
+        const value = localStorage.getItem(key);
+        try {
+            return JSON.parse(value);
+        } catch {
+            return value;
+        }
+    },
+
+    set(key, value) {
+        localStorage.setItem(key, JSON.stringify(value));
+    },
+
+    remove(key) {
+        localStorage.removeItem(key);
+    },
+};

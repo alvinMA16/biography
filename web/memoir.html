@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的回忆录</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container memoir-page">
+        <header class="memoir-header">
+            <button class="btn-back" onclick="goHome()">返回</button>
+            <h1>我的回忆录</h1>
+        </header>
+
+        <main>
+            <!-- 回忆录列表 -->
+            <div class="memoir-list" id="memoirList">
+                <!-- 动态插入 -->
+            </div>
+
+            <!-- 空状态 -->
+            <div class="empty-state" id="emptyState" style="display: none;">
+                <p>还没有回忆录</p>
+                <p>和我聊聊天，我会帮您整理成文字</p>
+                <button class="btn btn-primary" onclick="goHome()">开始讲述</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- 回忆录详情弹窗 -->
+    <div class="modal" id="memoirModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="memoirTitle"></h2>
+                <button class="btn-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="memoir-content" id="memoirContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/memoir.js"></script>
+</body>
+</html>

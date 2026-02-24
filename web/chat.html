@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>对话 - 回忆录</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container chat-page">
+        <header class="chat-header">
+            <button class="btn-icon" onclick="goHome()">返回</button>
+            <h1>对话</h1>
+            <button class="btn-icon" onclick="endChat()">结束</button>
+        </header>
+
+        <main class="chat-main">
+            <div class="conversation-focus" id="conversationFocus">
+                <!-- AI 的问题 -->
+                <div class="ai-question">
+                    <div class="label">请您回忆</div>
+                    <div class="content" id="aiQuestion">
+                        <!-- AI问题会显示在这里 -->
+                    </div>
+                </div>
+
+                <!-- 用户输入 -->
+                <div class="user-input-section">
+                    <div class="label">您的讲述</div>
+                    <textarea
+                        id="messageInput"
+                        placeholder="请在这里写下您的回忆..."
+                        onkeydown="handleKeyDown(event)"
+                    ></textarea>
+                    <div class="input-footer">
+                        <button class="btn btn-primary" onclick="sendMessage()">继续</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 加载状态 -->
+            <div class="loading-state" id="loadingState" style="display: none;">
+                <p>正在聆听<span class="loading-dots"></span></p>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/chat.js"></script>
+</body>
+</html>
