@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     dashscope_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     dashscope_model: str = "qwen-plus"
 
+    # 阿里云语音识别配置
+    aliyun_ak_id: str = ""
+    aliyun_ak_secret: str = ""
+    aliyun_nls_appkey: str = ""
+
     # 应用配置
     debug: bool = True
 
