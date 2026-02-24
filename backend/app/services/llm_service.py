@@ -1,5 +1,5 @@
 from openai import OpenAI
-from typing import List, Dict
+from typing import List, Dict, Generator
 from app.config import settings
 
 
@@ -28,6 +28,27 @@ class LLMService:
         )
 
         return response.choices[0].message.content
+
+    def chat_stream(self, messages: List[Dict[str, str]], system_prompt: str = None) -> Generator[str, None, None]:
+        """流式对话请求"""
+        full_messages = []
+
+        if system_prompt:
+            full_messages.append({"role": "system", "content": system_prompt})
+
+        full_messages.extend(messages)
+
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=full_messages,
+            temperature=0.8,
+            max_tokens=500,
+            stream=True
+        )
+
+        for chunk in response:
+            if chunk.choices[0].delta.content:
+                yield chunk.choices[0].delta.content
 
     def generate_summary(self, conversation_text: str) -> str:
         """生成对话摘要"""

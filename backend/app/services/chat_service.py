@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Generator
 from app.models import Conversation, Message
 from app.services.llm_service import llm_service
 from app.prompts import SYSTEM_PROMPT, FIRST_MESSAGE
@@ -56,6 +56,42 @@ class ChatService:
         db.commit()
 
         return ai_response
+
+    def chat_stream(self, db: Session, conversation_id: str, user_message: str) -> Generator[str, None, str]:
+        """流式处理用户消息，逐步返回AI回复"""
+        # 保存用户消息
+        user_msg = Message(
+            conversation_id=conversation_id,
+            role="user",
+            content=user_message
+        )
+        db.add(user_msg)
+        db.commit()
+
+        # 获取历史消息
+        messages = db.query(Message).filter(
+            Message.conversation_id == conversation_id
+        ).order_by(Message.created_at).all()
+
+        # 构建对话历史
+        history = [{"role": msg.role, "content": msg.content} for msg in messages]
+
+        # 流式调用大模型
+        full_response = ""
+        for chunk in llm_service.chat_stream(history, SYSTEM_PROMPT):
+            full_response += chunk
+            yield chunk
+
+        # 保存完整的AI回复
+        ai_msg = Message(
+            conversation_id=conversation_id,
+            role="assistant",
+            content=full_response
+        )
+        db.add(ai_msg)
+        db.commit()
+
+        return full_response
 
     def end_conversation(self, db: Session, conversation_id: str) -> Conversation:
         """结束对话，生成摘要"""

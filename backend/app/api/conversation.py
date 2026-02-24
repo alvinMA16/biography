@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
 
-from app.database import get_db
+from app.database import get_db, SessionLocal
 from app.services.chat_service import chat_service
 
 router = APIRouter()
@@ -65,6 +66,39 @@ def chat(conversation_id: str, request: ChatRequest, db: Session = Depends(get_d
 
     response = chat_service.chat(db, conversation_id, request.message)
     return ChatResponse(message=response)
+
+
+@router.post("/{conversation_id}/chat/stream")
+def chat_stream(conversation_id: str, request: ChatRequest):
+    """流式发送消息"""
+    db = SessionLocal()
+    try:
+        conversation = chat_service.get_conversation(db, conversation_id)
+        if not conversation:
+            raise HTTPException(status_code=404, detail="对话不存在")
+
+        if conversation.status == "completed":
+            raise HTTPException(status_code=400, detail="对话已结束")
+
+        def generate():
+            try:
+                for chunk in chat_service.chat_stream(db, conversation_id, request.message):
+                    yield f"data: {chunk}\n\n"
+                yield "data: [DONE]\n\n"
+            finally:
+                db.close()
+
+        return StreamingResponse(
+            generate(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            }
+        )
+    except Exception as e:
+        db.close()
+        raise e
 
 
 @router.post("/{conversation_id}/end", response_model=ConversationResponse)
