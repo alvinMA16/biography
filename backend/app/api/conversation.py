@@ -6,6 +6,7 @@ from typing import List, Optional
 
 from app.database import get_db, SessionLocal
 from app.services.chat_service import chat_service
+from app.services.llm_service import llm_service
 
 router = APIRouter()
 
@@ -99,6 +100,21 @@ def chat_stream(conversation_id: str, request: ChatRequest):
     except Exception as e:
         db.close()
         raise e
+
+
+class EmpathyRequest(BaseModel):
+    text: str
+
+
+class EmpathyResponse(BaseModel):
+    response: str
+
+
+@router.post("/empathy", response_model=EmpathyResponse)
+def generate_empathy(request: EmpathyRequest):
+    """生成共情回应（轻量级，不需要对话上下文）"""
+    response = llm_service.generate_empathy(request.text)
+    return EmpathyResponse(response=response)
 
 
 @router.post("/{conversation_id}/end", response_model=ConversationResponse)

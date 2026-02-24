@@ -423,6 +423,15 @@ body {
     80%, 100% { content: '...'; }
 }
 
+/* 共情后的等待提示 */
+.thinking-indicator {
+    display: block;
+    margin-top: 24px;
+    font-size: 14px;
+    color: var(--color-text-light);
+    font-family: var(--font-sans);
+}
+
 /* ============ 回忆录页面 ============ */
 .memoir-page {
     min-height: 100vh;

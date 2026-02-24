@@ -1,26 +1,38 @@
-// 聊天页面逻辑 - 自动语音对话
+// 聊天页面逻辑 - 自动语音对话 + 两阶段响应
 
 let conversationId = null;
 
-// 语音相关
-let audioContext = null;
+// 语音相关 - 持久化的媒体流
+let mediaStream = null;          // 持久化的媒体流（只创建一次）
+let audioContext = null;         // 持久化的音频上下文
 let analyser = null;
 let microphone = null;
+let recordingProcessor = null;
+
+// 录音状态
 let audioChunks = [];
 let isRecording = false;
 let silenceTimer = null;
-let recordingProcessor = null;
+let empathySilenceTimer = null;
+let isMonitoring = false;        // 是否正在监测音量
 
 // 配置
-const SILENCE_THRESHOLD = 15;      // 静音阈值（0-255）
-const SILENCE_DURATION = 2000;     // 静音多久后结束（毫秒）
-const MIN_RECORDING_TIME = 500;    // 最短录音时间（毫秒）
-const SEGMENT_DURATION = 20000;    // 分段时长（20秒）
-const OVERLAP_DURATION = 3000;     // 重叠时长（3秒）
+const SILENCE_THRESHOLD = 15;           // 静音阈值（0-255）
+const FINAL_SILENCE_DURATION = 4000;    // 最终停止判定（4秒静音）
+const EMPATHY_SILENCE_DURATION = 2000;  // 触发共情的静音时长（2秒）
+const MIN_RECORDING_TIME = 500;         // 最短录音时间（毫秒）
+const SEGMENT_DURATION = 20000;         // 分段时长（20秒）
+const OVERLAP_DURATION = 3000;          // 重叠时长（3秒）
 let recordingStartTime = 0;
 let segmentTimer = null;
-let recognizedTexts = [];          // 存储各段识别结果
-let overlapChunks = [];            // 存储重叠部分的音频数据
+let recognizedTexts = [];               // 存储各段识别结果
+let overlapChunks = [];                 // 存储重叠部分的音频数据
+
+// 共情相关
+let latestEmpathyResponse = null;       // 最新的共情回应
+let empathyRequestPending = false;      // 是否有共情请求正在进行
+let lastEmpathyTriggerTime = 0;         // 上次触发共情的时间
+let pendingEmpathyTexts = [];           // 待发送共情请求的文本
 
 // 页面加载
 window.onload = async function() {
@@ -32,9 +44,91 @@ window.onload = async function() {
         return;
     }
 
+    // 先初始化麦克风（只请求一次权限）
+    const micReady = await initMicrophone();
+    if (!micReady) {
+        return;
+    }
+
     // 加载最新的AI问题
     await loadLatestQuestion();
 };
+
+// ========== 麦克风初始化（只调用一次） ==========
+
+async function initMicrophone() {
+    try {
+        // 请求麦克风权限并获取媒体流
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+                sampleRate: 16000,
+                channelCount: 1,
+                echoCancellation: true,
+                noiseSuppression: true
+            }
+        });
+
+        // 创建音频上下文
+        audioContext = new AudioContext({ sampleRate: 16000 });
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256;
+
+        // 连接麦克风到分析器
+        microphone = audioContext.createMediaStreamSource(mediaStream);
+        microphone.connect(analyser);
+
+        // 创建处理器用于录制PCM数据
+        recordingProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+        recordingProcessor.onaudioprocess = function(e) {
+            if (isRecording) {
+                const channelData = e.inputBuffer.getChannelData(0);
+                const pcmData = new Int16Array(channelData.length);
+                for (let i = 0; i < channelData.length; i++) {
+                    const s = Math.max(-1, Math.min(1, channelData[i]));
+                    pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+                audioChunks.push(pcmData);
+            }
+        };
+
+        microphone.connect(recordingProcessor);
+        recordingProcessor.connect(audioContext.destination);
+
+        console.log('麦克风初始化成功');
+        return true;
+
+    } catch (error) {
+        console.error('无法访问麦克风:', error);
+        alert('无法访问麦克风，请检查权限设置。您可以使用文字输入。');
+        showAIQuestion();
+        return false;
+    }
+}
+
+// 释放麦克风资源（只在离开页面时调用）
+function releaseMicrophone() {
+    if (recordingProcessor) {
+        recordingProcessor.disconnect();
+        recordingProcessor = null;
+    }
+
+    if (microphone) {
+        microphone.disconnect();
+        microphone = null;
+    }
+
+    if (audioContext) {
+        audioContext.close();
+        audioContext = null;
+    }
+
+    if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+        mediaStream = null;
+    }
+
+    console.log('麦克风资源已释放');
+}
 
 // 加载最新的AI问题，然后自动开始录音
 async function loadLatestQuestion() {
@@ -94,106 +188,121 @@ function showLoading(text = '正在思考') {
     document.getElementById('textInputFallback').style.display = 'none';
 }
 
-// ========== 语音录制 ==========
+// ========== 录音控制（不再重新请求权限） ==========
 
-async function startListening() {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-                sampleRate: 16000,
-                channelCount: 1,
-                echoCancellation: true,
-                noiseSuppression: true
-            }
-        });
+function startListening() {
+    // 检查麦克风是否已初始化
+    if (!mediaStream || !audioContext) {
+        console.error('麦克风未初始化');
+        return;
+    }
 
-        audioContext = new AudioContext({ sampleRate: 16000 });
-        analyser = audioContext.createAnalyser();
-        analyser.fftSize = 256;
+    // 如果音频上下文被挂起，恢复它
+    if (audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
 
-        microphone = audioContext.createMediaStreamSource(stream);
-        microphone.connect(analyser);
+    // 重置录音状态
+    audioChunks = [];
+    recognizedTexts = [];
+    overlapChunks = [];
+    recordingStartTime = Date.now();
 
-        // 用于录制PCM数据
-        recordingProcessor = audioContext.createScriptProcessor(4096, 1, 1);
-        audioChunks = [];
+    // 重置共情相关状态
+    latestEmpathyResponse = null;
+    empathyRequestPending = false;
+    lastEmpathyTriggerTime = Date.now();
+    pendingEmpathyTexts = [];
 
-        recordingProcessor.onaudioprocess = function(e) {
-            if (isRecording) {
-                const channelData = e.inputBuffer.getChannelData(0);
-                const pcmData = new Int16Array(channelData.length);
-                for (let i = 0; i < channelData.length; i++) {
-                    const s = Math.max(-1, Math.min(1, channelData[i]));
-                    pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-                }
-                audioChunks.push(pcmData);
-            }
-        };
+    // 开始录音
+    isRecording = true;
+    showVoiceInput();
+    updateVoiceHint('正在聆听...');
 
-        microphone.connect(recordingProcessor);
-        recordingProcessor.connect(audioContext.destination);
+    // 设置分段定时器（20秒触发一次共情请求）
+    startSegmentTimer();
 
-        // 保存stream引用
-        window.currentStream = stream;
-
-        isRecording = true;
-        recordingStartTime = Date.now();
-        recognizedTexts = [];
-        overlapChunks = [];
-        showVoiceInput();
-        updateVoiceHint('正在聆听...');
-
-        // 设置分段定时器
-        startSegmentTimer();
-
-        // 开始监测音量
+    // 开始监测音量
+    if (!isMonitoring) {
+        isMonitoring = true;
         monitorVolume();
-
-    } catch (error) {
-        console.error('无法访问麦克风:', error);
-        alert('无法访问麦克风，请检查权限设置。您可以使用文字输入。');
-        showAIQuestion();
     }
 }
 
-function monitorVolume() {
-    if (!analyser || !isRecording) return;
+function stopListening() {
+    isRecording = false;
 
+    // 清理计时器
+    if (silenceTimer) {
+        clearTimeout(silenceTimer);
+        silenceTimer = null;
+    }
+    if (empathySilenceTimer) {
+        clearTimeout(empathySilenceTimer);
+        empathySilenceTimer = null;
+    }
+    if (segmentTimer) {
+        clearTimeout(segmentTimer);
+        segmentTimer = null;
+    }
+
+    // 注意：不再释放媒体流，只是停止录音
+}
+
+function monitorVolume() {
+    if (!analyser) return;
+
+    // 即使不在录音，也继续监测（保持循环运行）
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
     analyser.getByteFrequencyData(dataArray);
 
     // 计算平均音量
     const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
 
-    // 更新可视化
-    updateVisualization(average);
+    // 只在录音时更新可视化和检测静音
+    if (isRecording) {
+        updateVisualization(average);
 
-    // 检测静音
-    if (average < SILENCE_THRESHOLD) {
-        // 静音中
-        if (!silenceTimer) {
-            silenceTimer = setTimeout(() => {
-                // 检查是否录了足够长的时间
-                if (Date.now() - recordingStartTime > MIN_RECORDING_TIME) {
-                    stopListeningAndSend();
-                } else {
-                    // 录音太短，继续监听
-                    silenceTimer = null;
-                }
-            }, SILENCE_DURATION);
+        // 检测静音
+        if (average < SILENCE_THRESHOLD) {
+            // 静音中 - 启动共情静音计时器（2秒）
+            if (!empathySilenceTimer) {
+                empathySilenceTimer = setTimeout(() => {
+                    // 2秒静音，触发共情请求
+                    triggerEmpathyRequest();
+                    empathySilenceTimer = null;
+                }, EMPATHY_SILENCE_DURATION);
+            }
+
+            // 启动最终停止计时器（4秒）
+            if (!silenceTimer) {
+                silenceTimer = setTimeout(() => {
+                    // 检查是否录了足够长的时间
+                    if (Date.now() - recordingStartTime > MIN_RECORDING_TIME) {
+                        stopListeningAndSend();
+                    } else {
+                        // 录音太短，继续监听
+                        silenceTimer = null;
+                    }
+                }, FINAL_SILENCE_DURATION);
+            }
+            updateVoiceHint('静音中...');
+        } else {
+            // 有声音，重置所有静音计时器
+            if (silenceTimer) {
+                clearTimeout(silenceTimer);
+                silenceTimer = null;
+            }
+            if (empathySilenceTimer) {
+                clearTimeout(empathySilenceTimer);
+                empathySilenceTimer = null;
+            }
+            updateVoiceHint('正在聆听...');
         }
-        updateVoiceHint('静音中...');
-    } else {
-        // 有声音，重置静音计时器
-        if (silenceTimer) {
-            clearTimeout(silenceTimer);
-            silenceTimer = null;
-        }
-        updateVoiceHint('正在聆听...');
     }
 
-    // 继续监测
-    if (isRecording) {
+    // 继续监测（只要页面还在）
+    if (isMonitoring) {
         requestAnimationFrame(monitorVolume);
     }
 }
@@ -217,6 +326,34 @@ function updateVoiceHint(text) {
     document.getElementById('voiceHint').textContent = text;
 }
 
+// ========== 共情请求 ==========
+
+async function triggerEmpathyRequest() {
+    // 如果已经有请求在进行，跳过
+    if (empathyRequestPending) return;
+
+    // 收集当前所有已识别的文本
+    const currentTexts = [...recognizedTexts, ...pendingEmpathyTexts];
+    if (currentTexts.length === 0) return;
+
+    const textToSend = currentTexts.join('');
+    if (!textToSend.trim()) return;
+
+    console.log('触发共情请求:', textToSend.substring(0, 50) + '...');
+    empathyRequestPending = true;
+    lastEmpathyTriggerTime = Date.now();
+
+    try {
+        const result = await api.conversation.empathy(textToSend);
+        latestEmpathyResponse = result.response;
+        console.log('收到共情回应:', latestEmpathyResponse);
+    } catch (error) {
+        console.error('共情请求失败:', error);
+    } finally {
+        empathyRequestPending = false;
+    }
+}
+
 // ========== 分段处理 ==========
 
 function startSegmentTimer() {
@@ -227,7 +364,6 @@ function startSegmentTimer() {
         }
 
         // 计算重叠部分需要保留多少数据
-        // 16000采样率 * 2字节 * 3秒 = 96000字节 = 约3000个chunk（每个chunk 4096采样）
         const samplesPerSecond = 16000;
         const overlapSamples = samplesPerSecond * (OVERLAP_DURATION / 1000);
 
@@ -249,8 +385,8 @@ function startSegmentTimer() {
         overlapChunks = audioChunks.slice(overlapStartIndex);
         audioChunks = [...overlapChunks];
 
-        // 异步识别这一段（不阻塞录音）
-        recognizeSegment(chunksToRecognize);
+        // 异步识别这一段
+        recognizeSegment(chunksToRecognize, true);
 
         // 继续下一个分段定时器
         if (isRecording) startSegmentTimer();
@@ -258,7 +394,7 @@ function startSegmentTimer() {
     }, SEGMENT_DURATION);
 }
 
-async function recognizeSegment(chunks) {
+async function recognizeSegment(chunks, triggerEmpathy = false) {
     if (chunks.length === 0) return;
 
     // 合并音频数据
@@ -276,6 +412,11 @@ async function recognizeSegment(chunks) {
         const result = await api.asr.recognize(wavBlob);
         if (result.text && result.text.trim()) {
             recognizedTexts.push(result.text.trim());
+
+            // 20秒分段后也触发共情请求
+            if (triggerEmpathy) {
+                triggerEmpathyRequest();
+            }
         }
     } catch (error) {
         console.error('分段识别失败:', error);
@@ -285,33 +426,7 @@ async function recognizeSegment(chunks) {
 async function stopListeningAndSend() {
     if (!isRecording) return;
 
-    isRecording = false;
-
-    // 清理计时器
-    if (silenceTimer) {
-        clearTimeout(silenceTimer);
-        silenceTimer = null;
-    }
-    if (segmentTimer) {
-        clearTimeout(segmentTimer);
-        segmentTimer = null;
-    }
-
-    if (window.currentStream) {
-        window.currentStream.getTracks().forEach(track => track.stop());
-    }
-
-    if (recordingProcessor) {
-        recordingProcessor.disconnect();
-    }
-
-    if (microphone) {
-        microphone.disconnect();
-    }
-
-    if (audioContext) {
-        audioContext.close();
-    }
+    stopListening();
 
     // 检查是否有录音数据
     if (audioChunks.length === 0 && recognizedTexts.length === 0) {
@@ -320,7 +435,16 @@ async function stopListeningAndSend() {
         return;
     }
 
-    showLoading('正在识别语音');
+    // 如果有缓存的共情回应，立即显示，并添加等待提示
+    const aiQuestion = document.getElementById('aiQuestion');
+    if (latestEmpathyResponse) {
+        // 显示共情 + 等待动画
+        aiQuestion.innerHTML = latestEmpathyResponse + '<span class="thinking-indicator">正在继续思考<span class="loading-dots"></span></span>';
+        document.getElementById('aiSection').style.display = 'flex';
+        document.getElementById('voiceSection').style.display = 'none';
+    } else {
+        showLoading('正在识别语音');
+    }
 
     // 识别最后一段（如果有）
     if (audioChunks.length > 0) {
@@ -358,14 +482,35 @@ async function stopListeningAndSend() {
 // ========== 发送消息 ==========
 
 async function sendMessage(message) {
-    showLoading('正在思考');
-
     const aiQuestion = document.getElementById('aiQuestion');
-    aiQuestion.textContent = '';
+
+    // 如果没有共情回应显示，则显示loading
+    if (!latestEmpathyResponse) {
+        showLoading('正在思考');
+        aiQuestion.textContent = '';
+    }
+    // 如果有共情回应，保持显示，然后追加AI的完整回复
 
     try {
+        let fullResponse = '';
+        const empathyPrefix = latestEmpathyResponse ? latestEmpathyResponse + '\n\n' : '';
+        let firstChunk = true;
+
         await api.conversation.chatStream(conversationId, message, (chunk, fullText) => {
-            aiQuestion.textContent = fullText;
+            fullResponse = fullText;
+
+            // 第一个chunk到达时，移除等待提示
+            if (firstChunk) {
+                firstChunk = false;
+                // 移除等待动画（如果有的话）
+                const indicator = aiQuestion.querySelector('.thinking-indicator');
+                if (indicator) {
+                    indicator.remove();
+                }
+            }
+
+            // 显示共情回应 + 流式输出的追问
+            aiQuestion.textContent = empathyPrefix + fullText;
             // 显示AI区域，让用户看到流式输出
             document.getElementById('aiSection').style.display = 'flex';
             document.getElementById('loadingState').style.display = 'none';
@@ -418,20 +563,8 @@ function writeString(view, offset, string) {
 // ========== 文字输入模式 ==========
 
 function switchToTextMode() {
-    // 停止录音
-    if (isRecording) {
-        isRecording = false;
-        if (silenceTimer) {
-            clearTimeout(silenceTimer);
-            silenceTimer = null;
-        }
-        if (window.currentStream) {
-            window.currentStream.getTracks().forEach(track => track.stop());
-        }
-        if (audioContext) {
-            audioContext.close();
-        }
-    }
+    // 停止录音（但不释放麦克风）
+    stopListening();
 
     document.getElementById('textModal').style.display = 'flex';
     document.getElementById('messageInput').focus();
@@ -452,6 +585,8 @@ async function sendTextMessage() {
     input.value = '';
     document.getElementById('textModal').style.display = 'none';
 
+    // 文字输入不需要共情，直接发送
+    latestEmpathyResponse = null;
     await sendMessage(message);
 }
 
@@ -462,16 +597,10 @@ async function endChat() {
         return;
     }
 
-    // 停止录音
-    if (isRecording) {
-        isRecording = false;
-        if (window.currentStream) {
-            window.currentStream.getTracks().forEach(track => track.stop());
-        }
-        if (audioContext) {
-            audioContext.close();
-        }
-    }
+    // 停止录音并释放麦克风
+    stopListening();
+    isMonitoring = false;
+    releaseMicrophone();
 
     showLoading('正在保存');
 
@@ -493,13 +622,10 @@ async function endChat() {
 }
 
 function goHome() {
-    // 确保停止录音
-    if (isRecording) {
-        isRecording = false;
-        if (window.currentStream) {
-            window.currentStream.getTracks().forEach(track => track.stop());
-        }
-    }
+    // 停止监测并释放麦克风
+    stopListening();
+    isMonitoring = false;
+    releaseMicrophone();
 
     storage.remove('currentConversationId');
     window.location.href = 'index.html';
@@ -507,7 +633,6 @@ function goHome() {
 
 // 页面关闭时清理
 window.onbeforeunload = function() {
-    if (isRecording && window.currentStream) {
-        window.currentStream.getTracks().forEach(track => track.stop());
-    }
+    isMonitoring = false;
+    releaseMicrophone();
 };

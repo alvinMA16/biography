@@ -114,6 +114,13 @@ const api = {
         async list(userId) {
             return api.request(`/conversation/user/${userId}/list`);
         },
+
+        async empathy(text) {
+            return api.request('/conversation/empathy', {
+                method: 'POST',
+                body: JSON.stringify({ text }),
+            });
+        },
     },
 
     // 语音识别相关

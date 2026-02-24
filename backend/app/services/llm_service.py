@@ -50,6 +50,22 @@ class LLMService:
             if chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
 
+    def generate_empathy(self, user_text: str) -> str:
+        """生成共情回应（轻量级，不需要历史上下文）"""
+        from app.prompts import EMPATHY_PROMPT
+
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": EMPATHY_PROMPT},
+                {"role": "user", "content": user_text}
+            ],
+            temperature=0.8,
+            max_tokens=100  # 共情回应很短
+        )
+
+        return response.choices[0].message.content
+
     def generate_summary(self, conversation_text: str) -> str:
         """生成对话摘要"""
         from app.prompts import SUMMARY_PROMPT
