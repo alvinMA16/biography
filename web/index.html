@@ -8,6 +8,21 @@
 </head>
 <body>
     <div class="container home-page">
+        <!-- 用户菜单 -->
+        <div class="user-menu">
+            <button class="user-avatar" onclick="toggleDropdown()">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="8" r="4"/>
+                    <path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>
+                </svg>
+            </button>
+            <div class="dropdown" id="userDropdown">
+                <button class="dropdown-item" onclick="viewMemoirs()">我的回忆录</button>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item" onclick="logout()">登出</button>
+            </div>
+        </div>
+
         <header class="home-header">
             <h1>回忆录</h1>
             <p class="subtitle">记录您的人生故事</p>
@@ -23,8 +38,8 @@
             <div class="divider"></div>
 
             <div class="action-buttons">
-                <button class="btn btn-primary" onclick="startNewChat()">开始讲述</button>
-                <button class="btn btn-secondary" onclick="viewMemoirs()">我的回忆录</button>
+                <button class="btn btn-primary" onclick="startNewChat()">新的故事</button>
+                <button class="btn btn-secondary" onclick="viewMemoirs()">旧的回忆</button>
             </div>
         </main>
     </div>
@@ -35,6 +50,15 @@
         window.onload = function() {
             initApp();
         };
+
+        // 点击页面其他地方关闭下拉菜单
+        document.addEventListener('click', function(e) {
+            const dropdown = document.getElementById('userDropdown');
+            const avatar = document.querySelector('.user-avatar');
+            if (!avatar.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
     </script>
 </body>
 </html>

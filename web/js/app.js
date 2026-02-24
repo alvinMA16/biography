@@ -40,3 +40,18 @@ async function startNewChat() {
 function viewMemoirs() {
     window.location.href = 'memoir.html';
 }
+
+// 切换下拉菜单
+function toggleDropdown() {
+    const dropdown = document.getElementById('userDropdown');
+    dropdown.classList.toggle('show');
+}
+
+// 登出
+function logout() {
+    if (confirm('确定要登出吗？登出后本地数据将被清除。')) {
+        storage.remove('userId');
+        storage.remove('currentConversationId');
+        window.location.reload();
+    }
+}

@@ -23,8 +23,37 @@ body {
     font-size: 18px;
     line-height: 1.8;
     color: var(--color-text);
-    background-color: var(--color-bg);
+    background-color: #F5F2EB;
     min-height: 100vh;
+    /* 纸张纹理 - 用多层渐变模拟 */
+    background-image:
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(0,0,0,0.01) 2px,
+            rgba(0,0,0,0.01) 4px
+        ),
+        repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 2px,
+            rgba(0,0,0,0.01) 2px,
+            rgba(0,0,0,0.01) 4px
+        ),
+        repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 8px,
+            rgba(139,69,19,0.02) 8px,
+            rgba(139,69,19,0.02) 16px
+        ),
+        linear-gradient(
+            to bottom,
+            #F8F5EE 0%,
+            #F5F2EB 50%,
+            #F0EDE5 100%
+        );
 }
 
 .container {
@@ -41,6 +70,84 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    position: relative;
+}
+
+/* 用户菜单 */
+.user-menu {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+}
+
+.user-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--color-border);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.user-avatar:hover {
+    background: var(--color-text);
+}
+
+.user-avatar:hover svg {
+    stroke: var(--color-bg);
+}
+
+.user-avatar svg {
+    width: 20px;
+    height: 20px;
+    stroke: var(--color-text-light);
+    fill: none;
+    stroke-width: 1.5;
+}
+
+.dropdown {
+    position: absolute;
+    top: 44px;
+    right: 0;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    min-width: 140px;
+    display: none;
+    z-index: 100;
+}
+
+.dropdown.show {
+    display: block;
+}
+
+.dropdown-item {
+    display: block;
+    width: 100%;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-family: var(--font-sans);
+    color: var(--color-text);
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.dropdown-item:hover {
+    background: var(--color-bg-dark);
+    color: var(--color-accent);
+}
+
+.dropdown-divider {
+    height: 1px;
+    background: var(--color-border);
+    margin: 4px 0;
 }
 
 .home-header {
@@ -172,75 +279,125 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 60px 32px;
+    padding: 40px 32px;
+    position: relative;
 }
 
-.conversation-focus {
-    max-width: 100%;
+/* AI 区域 */
+.ai-section {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-/* AI 的问题 */
 .ai-question {
-    margin-bottom: 48px;
-}
-
-.ai-question .label {
-    font-size: 12px;
-    color: var(--color-accent);
-    font-family: var(--font-sans);
-    letter-spacing: 2px;
-    margin-bottom: 16px;
-    text-transform: uppercase;
+    max-width: 100%;
 }
 
 .ai-question .content {
     font-size: 22px;
     line-height: 1.9;
     color: var(--color-text);
+    text-align: center;
 }
 
-/* 用户输入区域 */
-.user-input-section {
-    border-top: 1px solid var(--color-border);
-    padding-top: 32px;
+/* 语音输入区域 */
+.voice-section {
+    padding: 40px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
 }
 
-.user-input-section .label {
-    font-size: 12px;
+.voice-visualizer {
+    width: 120px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.voice-bars {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 100%;
+}
+
+.voice-bars .bar {
+    width: 4px;
+    height: 20px;
+    background: var(--color-accent);
+    border-radius: 2px;
+    transition: height 0.1s ease;
+}
+
+.voice-bars .bar:nth-child(1) { height: 20px; }
+.voice-bars .bar:nth-child(2) { height: 30px; }
+.voice-bars .bar:nth-child(3) { height: 40px; }
+.voice-bars .bar:nth-child(4) { height: 30px; }
+.voice-bars .bar:nth-child(5) { height: 20px; }
+
+.voice-hint {
+    font-size: 14px;
     color: var(--color-text-light);
     font-family: var(--font-sans);
-    letter-spacing: 2px;
-    margin-bottom: 16px;
 }
 
-.user-input-section textarea {
+/* 底部文字输入切换 */
+.text-input-fallback {
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+    text-align: center;
+}
+
+.btn-text-mode {
+    background: none;
+    border: none;
+    font-size: 14px;
+    color: var(--color-text-light);
+    font-family: var(--font-sans);
+    cursor: pointer;
+    padding: 8px 16px;
+}
+
+.btn-text-mode:hover {
+    color: var(--color-accent);
+}
+
+/* 文字输入弹窗 */
+.text-modal {
+    max-width: 500px;
+}
+
+.text-modal textarea {
     width: 100%;
     min-height: 120px;
-    padding: 0;
+    padding: 16px;
     font-size: 18px;
     font-family: var(--font-serif);
-    line-height: 1.9;
-    color: var(--color-text);
-    background: transparent;
-    border: none;
+    line-height: 1.8;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
     resize: none;
     outline: none;
 }
 
-.user-input-section textarea::placeholder {
-    color: #BBB;
+.text-modal textarea:focus {
+    border-color: var(--color-accent);
 }
 
-.input-footer {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 24px;
-    gap: 16px;
+.modal-footer {
+    margin-top: 16px;
+    text-align: right;
 }
 
-.input-footer .btn {
+.modal-footer .btn {
     padding: 12px 32px;
-    font-size: 14px;
 }
 
 /* 加载状态 */

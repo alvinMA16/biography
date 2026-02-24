@@ -62,6 +62,45 @@ const api = {
             });
         },
 
+        async chatStream(conversationId, message, onChunk) {
+            const response = await fetch(`${API_BASE_URL}/conversation/${conversationId}/chat/stream`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message }),
+            });
+
+            if (!response.ok) {
+                throw new Error('请求失败');
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let fullText = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const text = decoder.decode(value);
+                const lines = text.split('\n');
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6);
+                        if (data === '[DONE]') {
+                            return fullText;
+                        }
+                        fullText += data;
+                        onChunk(data, fullText);
+                    }
+                }
+            }
+
+            return fullText;
+        },
+
         async end(conversationId) {
             return api.request(`/conversation/${conversationId}/end`, {
                 method: 'POST',
@@ -74,6 +113,26 @@ const api = {
 
         async list(userId) {
             return api.request(`/conversation/user/${userId}/list`);
+        },
+    },
+
+    // 语音识别相关
+    asr: {
+        async recognize(audioBlob) {
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'audio.wav');
+
+            const response = await fetch(`${API_BASE_URL}/asr/recognize`, {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || '语音识别失败');
+            }
+
+            return await response.json();
         },
     },
 

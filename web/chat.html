@@ -15,34 +15,53 @@
         </header>
 
         <main class="chat-main">
-            <div class="conversation-focus" id="conversationFocus">
-                <!-- AI 的问题 -->
+            <!-- AI 问题区域 -->
+            <div class="ai-section" id="aiSection">
                 <div class="ai-question">
-                    <div class="label">请您回忆</div>
-                    <div class="content" id="aiQuestion">
-                        <!-- AI问题会显示在这里 -->
-                    </div>
+                    <div class="content" id="aiQuestion"></div>
                 </div>
+            </div>
 
-                <!-- 用户输入 -->
-                <div class="user-input-section">
-                    <div class="label">您的讲述</div>
-                    <textarea
-                        id="messageInput"
-                        placeholder="请在这里写下您的回忆..."
-                        onkeydown="handleKeyDown(event)"
-                    ></textarea>
-                    <div class="input-footer">
-                        <button class="btn btn-primary" onclick="sendMessage()">继续</button>
+            <!-- 语音输入区域 -->
+            <div class="voice-section" id="voiceSection" style="display: none;">
+                <div class="voice-visualizer">
+                    <div class="voice-bars">
+                        <span class="bar"></span>
+                        <span class="bar"></span>
+                        <span class="bar"></span>
+                        <span class="bar"></span>
+                        <span class="bar"></span>
                     </div>
                 </div>
+                <p class="voice-hint" id="voiceHint">正在聆听...</p>
             </div>
 
             <!-- 加载状态 -->
             <div class="loading-state" id="loadingState" style="display: none;">
-                <p>正在聆听<span class="loading-dots"></span></p>
+                <p id="loadingText">正在思考<span class="loading-dots"></span></p>
+            </div>
+
+            <!-- 底部文字输入（备用） -->
+            <div class="text-input-fallback" id="textInputFallback">
+                <button class="btn-text-mode" onclick="switchToTextMode()">切换到文字输入</button>
             </div>
         </main>
+    </div>
+
+    <!-- 文字输入弹窗 -->
+    <div class="modal" id="textModal" style="display: none;">
+        <div class="modal-content text-modal">
+            <div class="modal-header">
+                <h2>文字输入</h2>
+                <button class="btn-close" onclick="closeTextModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <textarea id="messageInput" placeholder="请输入您想说的话..."></textarea>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" onclick="sendTextMessage()">发送</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="js/api.js"></script>
