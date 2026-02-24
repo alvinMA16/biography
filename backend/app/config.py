@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     dashscope_api_key: str = ""
     dashscope_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     dashscope_model: str = "qwen-plus"
+    dashscope_model_fast: str = "qwen-turbo"  # 用于快速响应（如共情）
 
     # 阿里云语音识别配置
     aliyun_ak_id: str = ""

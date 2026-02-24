@@ -430,6 +430,15 @@ body {
     font-size: 14px;
     color: var(--color-text-light);
     font-family: var(--font-sans);
+    text-align: center;
+}
+
+/* 追问内容 */
+.followup-content {
+    display: block;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--color-border);
 }
 
 /* ============ 回忆录页面 ============ */

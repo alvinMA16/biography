@@ -10,6 +10,7 @@ class LLMService:
             base_url=settings.dashscope_base_url
         )
         self.model = settings.dashscope_model
+        self.model_fast = settings.dashscope_model_fast  # 快速模型
 
     def chat(self, messages: List[Dict[str, str]], system_prompt: str = None) -> str:
         """发送对话请求到大模型"""
@@ -51,17 +52,17 @@ class LLMService:
                 yield chunk.choices[0].delta.content
 
     def generate_empathy(self, user_text: str) -> str:
-        """生成共情回应（轻量级，不需要历史上下文）"""
+        """生成共情回应（使用快速模型，不需要历史上下文）"""
         from app.prompts import EMPATHY_PROMPT
 
         response = self.client.chat.completions.create(
-            model=self.model,
+            model=self.model_fast,  # 使用快速模型
             messages=[
                 {"role": "system", "content": EMPATHY_PROMPT},
                 {"role": "user", "content": user_text}
             ],
             temperature=0.8,
-            max_tokens=100  # 共情回应很短
+            max_tokens=200  # 共情回应3-4句话
         )
 
         return response.choices[0].message.content
