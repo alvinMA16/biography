@@ -98,5 +98,29 @@ class LLMService:
 
         return response.choices[0].message.content
 
+    def generate_title(self, conversation_text: str) -> str:
+        """根据对话内容生成简练的标题"""
+        prompt = f"""请根据以下对话内容，生成一个简练的标题（5-15个字），概括这段回忆的主题。
+
+要求：
+- 标题要简洁有意境
+- 突出回忆的核心内容或情感
+- 不要用"回忆"、"故事"等泛泛的词
+- 直接返回标题，不要有引号或其他格式
+
+对话内容：
+{conversation_text}
+
+标题："""
+
+        response = self.client.chat.completions.create(
+            model=self.model_fast,  # 使用快速模型
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=30
+        )
+
+        return response.choices[0].message.content.strip()
+
 
 llm_service = LLMService()

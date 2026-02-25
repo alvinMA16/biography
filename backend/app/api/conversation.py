@@ -119,11 +119,20 @@ def generate_empathy(request: EmpathyRequest):
 
 @router.post("/{conversation_id}/end", response_model=ConversationResponse)
 def end_conversation(conversation_id: str, db: Session = Depends(get_db)):
-    """结束对话"""
+    """结束对话（生成摘要）"""
     conversation = chat_service.end_conversation(db, conversation_id)
     if not conversation:
         raise HTTPException(status_code=404, detail="对话不存在")
     return conversation
+
+
+@router.post("/{conversation_id}/end-quick")
+def end_conversation_quick(conversation_id: str, db: Session = Depends(get_db)):
+    """快速结束对话（不生成摘要）"""
+    conversation = chat_service.end_conversation_quick(db, conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="对话不存在")
+    return {"status": "ok", "conversation_id": conversation_id}
 
 
 @router.get("/{conversation_id}", response_model=ConversationResponse)

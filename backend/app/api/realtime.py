@@ -9,8 +9,32 @@ from urllib.parse import parse_qs
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.services.doubao_realtime import DoubaoRealtimeClient
+from app.database import SessionLocal
+from app.models import Message
 
 router = APIRouter()
+
+
+def save_message(conversation_id: str, role: str, content: str):
+    """保存消息到数据库"""
+    if not conversation_id or not content or not content.strip():
+        return
+
+    db = SessionLocal()
+    try:
+        message = Message(
+            conversation_id=conversation_id,
+            role=role,
+            content=content.strip()
+        )
+        db.add(message)
+        db.commit()
+        print(f"[Realtime] 保存消息: {role} - {content[:50]}...")
+    except Exception as e:
+        print(f"[Realtime] 保存消息失败: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
 
 @router.websocket("/dialog")
@@ -31,14 +55,19 @@ async def realtime_dialog(websocket: WebSocket):
     """
     await websocket.accept()
 
-    # 从 URL 查询参数中获取 speaker
+    # 从 URL 查询参数中获取参数
     query_string = websocket.scope.get("query_string", b"").decode()
     query_params = parse_qs(query_string)
     speaker = query_params.get("speaker", [None])[0]
-    print(f"[Realtime] 收到连接请求, speaker={speaker}")
+    conversation_id = query_params.get("conversation_id", [None])[0]
+    print(f"[Realtime] 收到连接请求, speaker={speaker}, conversation_id={conversation_id}")
 
     client = None
     receive_task = None
+
+    # 用于累积文本内容
+    current_asr_text = ""
+    current_response_text = ""
 
     async def on_audio(audio_data: bytes):
         """收到音频回复"""
@@ -52,23 +81,48 @@ async def realtime_dialog(websocket: WebSocket):
 
     async def on_text(text_type: str, content: str):
         """收到文本"""
+        nonlocal current_asr_text, current_response_text
+
         try:
             await websocket.send_json({
                 "type": "text",
                 "text_type": text_type,
                 "content": content
             })
+
+            # 累积文本
+            if text_type == "asr":
+                current_asr_text = content  # ASR 是完整替换，不是追加
+            elif text_type == "response":
+                current_response_text = content  # 同样是完整内容
+
         except Exception as e:
             print(f"发送文本失败: {e}")
 
     async def on_event(event: int, payload: dict):
         """收到事件"""
+        nonlocal current_asr_text, current_response_text
+
         try:
             await websocket.send_json({
                 "type": "event",
                 "event": event,
                 "payload": payload if isinstance(payload, dict) else {}
             })
+
+            # 根据事件保存消息
+            if event == 459:
+                # 用户说完 - 保存用户消息
+                if current_asr_text and conversation_id:
+                    save_message(conversation_id, "user", current_asr_text)
+                    current_asr_text = ""
+
+            elif event == 359:
+                # TTS 结束 - 保存 AI 回复
+                if current_response_text and conversation_id:
+                    save_message(conversation_id, "assistant", current_response_text)
+                    current_response_text = ""
+
         except Exception as e:
             print(f"发送事件失败: {e}")
 

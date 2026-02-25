@@ -124,6 +124,22 @@ class ChatService:
 
         return conversation
 
+    def end_conversation_quick(self, db: Session, conversation_id: str) -> Conversation:
+        """快速结束对话（不生成摘要）"""
+        conversation = db.query(Conversation).filter(
+            Conversation.id == conversation_id
+        ).first()
+
+        if not conversation:
+            return None
+
+        # 只更新状态，不生成摘要
+        conversation.status = "completed"
+        db.commit()
+        db.refresh(conversation)
+
+        return conversation
+
     def get_conversation(self, db: Session, conversation_id: str) -> Optional[Conversation]:
         """获取对话详情"""
         return db.query(Conversation).filter(

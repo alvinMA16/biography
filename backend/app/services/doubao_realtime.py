@@ -313,10 +313,30 @@ class DoubaoRealtimeClient:
 
                     # 提取文本内容
                     if isinstance(payload, dict):
-                        if 'text' in payload and self.on_text:
-                            self.on_text('response', payload['text'])
-                        if 'asr_text' in payload and self.on_text:
-                            self.on_text('asr', payload['asr_text'])
+                        # 从 results 数组中提取文本（事件 451 等）
+                        results = payload.get('results', [])
+                        if results and isinstance(results, list) and len(results) > 0:
+                            result = results[0]
+                            if isinstance(result, dict):
+                                # AI 回复文本
+                                response_text = result.get('text')
+                                if response_text and self.on_text:
+                                    self.on_text('response', response_text)
+
+                                # ASR 文本
+                                asr_text = result.get('asr_text')
+                                if asr_text and self.on_text:
+                                    self.on_text('asr', asr_text)
+
+                        # 兼容其他格式
+                        if not results:
+                            response_text = payload.get('text') or payload.get('content')
+                            if response_text and self.on_text:
+                                self.on_text('response', response_text)
+
+                            asr_text = payload.get('asr_text')
+                            if asr_text and self.on_text:
+                                self.on_text('asr', asr_text)
 
                     # 会话结束事件
                     if event in (152, 153):

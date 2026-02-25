@@ -5,6 +5,80 @@ from app.services.llm_service import llm_service
 
 
 class MemoirService:
+    def _get_conversation_text(self, db: Session, conversation_id: str) -> str:
+        """获取对话文本"""
+        messages = db.query(Message).filter(
+            Message.conversation_id == conversation_id
+        ).order_by(Message.created_at).all()
+
+        return "\n".join([
+            f"{'老人' if msg.role == 'user' else '晚辈'}: {msg.content}"
+            for msg in messages
+        ])
+
+    def create_generating(
+        self,
+        db: Session,
+        user_id: str,
+        conversation_id: str,
+    ) -> Memoir:
+        """创建一个"撰写中"状态的回忆录"""
+        # 获取对话文本
+        conversation_text = self._get_conversation_text(db, conversation_id)
+
+        # 生成标题
+        if conversation_text.strip():
+            title = llm_service.generate_title(conversation_text)
+        else:
+            title = "新回忆"
+
+        # 获取现有回忆录数量，用于排序
+        count = db.query(Memoir).filter(Memoir.user_id == user_id).count()
+
+        # 创建回忆录（撰写中状态）
+        memoir = Memoir(
+            user_id=user_id,
+            conversation_id=conversation_id,
+            title=title,
+            content=None,
+            status="generating",
+            source_conversations=[conversation_id],
+            order_index=count
+        )
+        db.add(memoir)
+        db.commit()
+        db.refresh(memoir)
+
+        return memoir
+
+    def complete_generation(
+        self,
+        db: Session,
+        memoir_id: str,
+        perspective: str = "第一人称"
+    ) -> Memoir:
+        """完成回忆录内容生成"""
+        memoir = db.query(Memoir).filter(Memoir.id == memoir_id).first()
+        if not memoir:
+            return None
+
+        # 获取对话文本
+        conversation_text = self._get_conversation_text(db, memoir.conversation_id)
+
+        # 生成回忆录内容
+        if conversation_text.strip():
+            content = llm_service.generate_memoir(conversation_text, perspective)
+        else:
+            content = "（对话内容为空）"
+
+        # 更新回忆录
+        memoir.content = content
+        memoir.status = "completed"
+        db.commit()
+        db.refresh(memoir)
+
+        return memoir
+
     def generate_from_conversation(
         self,
         db: Session,
@@ -13,20 +87,22 @@ class MemoirService:
         title: str = None,
         perspective: str = "第一人称"
     ) -> Memoir:
-        """从单个对话生成回忆录章节"""
-        # 获取对话消息
-        messages = db.query(Message).filter(
-            Message.conversation_id == conversation_id
-        ).order_by(Message.created_at).all()
+        """从单个对话生成回忆录章节（同步方式）"""
+        # 获取对话文本
+        conversation_text = self._get_conversation_text(db, conversation_id)
 
-        # 构建对话文本
-        conversation_text = "\n".join([
-            f"{'老人' if msg.role == 'user' else '晚辈'}: {msg.content}"
-            for msg in messages
-        ])
+        # 生成标题（如果没有提供）
+        if not title:
+            if conversation_text.strip():
+                title = llm_service.generate_title(conversation_text)
+            else:
+                title = "新回忆"
 
         # 生成回忆录内容
-        content = llm_service.generate_memoir(conversation_text, perspective)
+        if conversation_text.strip():
+            content = llm_service.generate_memoir(conversation_text, perspective)
+        else:
+            content = "（对话内容为空）"
 
         # 获取现有回忆录数量，用于排序
         count = db.query(Memoir).filter(Memoir.user_id == user_id).count()
@@ -34,8 +110,10 @@ class MemoirService:
         # 创建回忆录
         memoir = Memoir(
             user_id=user_id,
-            title=title or f"回忆片段 {count + 1}",
+            conversation_id=conversation_id,
+            title=title,
             content=content,
+            status="completed",
             source_conversations=[conversation_id],
             order_index=count
         )

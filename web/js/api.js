@@ -107,6 +107,12 @@ const api = {
             });
         },
 
+        async endQuick(conversationId) {
+            return api.request(`/conversation/${conversationId}/end-quick`, {
+                method: 'POST',
+            });
+        },
+
         async get(conversationId) {
             return api.request(`/conversation/${conversationId}`);
         },
@@ -150,6 +156,15 @@ const api = {
                 method: 'POST',
                 body: JSON.stringify({ conversation_id: conversationId, title, perspective }),
             });
+        },
+
+        // 异步生成回忆录（不等待完成）
+        generateAsync(userId, conversationId, title = null, perspective = '第一人称') {
+            fetch(`${API_BASE_URL}/memoir/generate-async?user_id=${userId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ conversation_id: conversationId, title, perspective }),
+            }).catch(err => console.error('异步生成回忆录失败:', err));
         },
 
         async list(userId) {

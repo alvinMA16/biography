@@ -819,3 +819,42 @@ body {
     0%, 100% { height: 8px; }
     50% { height: 32px; }
 }
+
+/* 回忆录列表项 - 增强版 */
+.memoir-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.memoir-item-header h3 {
+    margin: 0;
+    flex: 1;
+}
+
+.memoir-status {
+    font-size: 12px;
+    color: var(--color-accent);
+    background: rgba(139, 69, 19, 0.1);
+    padding: 4px 10px;
+    border-radius: 12px;
+    white-space: nowrap;
+}
+
+.memoir-time {
+    font-size: 13px;
+    color: var(--color-text-light);
+    margin-top: 8px;
+    font-family: var(--font-sans);
+}
+
+.memoir-item.generating {
+    opacity: 0.7;
+    cursor: default;
+}
+
+.memoir-item.generating:hover {
+    transform: none;
+    box-shadow: none;
+}

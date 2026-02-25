@@ -21,6 +21,8 @@ let gainNode = null;   // 音量控制节点
 
 // 状态
 let isRecording = false;
+let currentAIResponse = '';  // 累积AI回复文本
+let isAISpeaking = false;    // AI是否正在说话
 
 // 配置
 const SAMPLE_RATE_INPUT = 16000;   // 输入采样率
@@ -61,8 +63,12 @@ async function connectWebSocket() {
     const selectedRecorder = storage.get('selectedRecorder') || 'female';
     const speaker = RECORDERS[selectedRecorder]?.speaker || RECORDERS.female.speaker;
 
-    // 构建 WebSocket URL，带上音色参数
-    const wsUrl = `ws://${hostname}:8001/api/realtime/dialog?speaker=${encodeURIComponent(speaker)}`;
+    // 构建 WebSocket URL，带上音色和对话ID参数
+    const params = new URLSearchParams({
+        speaker: speaker,
+        conversation_id: conversationId
+    });
+    const wsUrl = `ws://${hostname}:8001/api/realtime/dialog?${params.toString()}`;
 
     console.log('连接 WebSocket:', wsUrl, '记录师:', selectedRecorder);
 
@@ -118,11 +124,14 @@ function handleServerMessage(message) {
         case 'text':
             // 收到文本
             if (message.text_type === 'asr') {
-                // 用户说的话（ASR结果）
+                // 用户说的话 - 不显示，只打印日志
                 console.log('用户说:', message.content);
             } else if (message.text_type === 'response') {
-                // AI 回复文字，更新显示
-                updateAIText(message.content);
+                // AI 回复文字 - 累积并显示
+                if (isAISpeaking && message.content) {
+                    currentAIResponse += message.content;  // 累积文本
+                    updateAIText(currentAIResponse);
+                }
             }
             break;
 
@@ -138,12 +147,15 @@ function handleEvent(event, payload) {
     switch (event) {
         case 350:
             // TTS 开始 - AI 开始说话
+            isAISpeaking = true;
+            currentAIResponse = '';  // 清空，准备接收新回复
             updateVoiceStatus('记录师正在说话');
             setVoiceActive(false);
             break;
 
         case 359:
-            // TTS 结束 - 可以开始录音了
+            // TTS 结束 - AI 说完了，可以开始录音
+            isAISpeaking = false;
             updateVoiceStatus('请开始说话');
             setTimeout(() => {
                 startRecording();
@@ -152,6 +164,7 @@ function handleEvent(event, payload) {
 
         case 450:
             // 用户开始说话 - 清空音频队列，音波动起来
+            // 不更新上方文字，保持显示AI之前的问题
             clearAudioQueue();
             updateVoiceStatus('正在聆听...');
             setVoiceActive(true);
@@ -166,6 +179,7 @@ function handleEvent(event, payload) {
         case 152:
         case 153:
             // 会话结束
+            isAISpeaking = false;
             updateAIText('对话已结束');
             updateVoiceStatus('已结束');
             setVoiceActive(false);
@@ -433,15 +447,22 @@ async function endChat() {
         ws.close();
     }
 
-    showLoading('正在保存');
+    const generateMemoir = confirm('是否要把这次对话整理成回忆录？');
+
+    updateAIText('正在保存...');
+    updateVoiceStatus('请稍候');
 
     try {
-        await api.conversation.end(conversationId);
+        // 结束对话（快速保存，不生成摘要）
+        await api.conversation.endQuick(conversationId);
 
-        if (confirm('是否要把这次对话整理成回忆录？')) {
+        if (generateMemoir) {
+            // 异步生成回忆录，不等待完成
             const userId = storage.get('userId');
-            await api.memoir.generate(userId, conversationId);
-            alert('回忆录已生成！');
+            api.memoir.generateAsync(userId, conversationId);
+            alert('对话已保存，回忆录正在后台生成中...');
+        } else {
+            alert('对话已保存');
         }
 
         goHome();
