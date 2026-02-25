@@ -60,10 +60,11 @@ async def realtime_dialog(websocket: WebSocket):
     query_string = websocket.scope.get("query_string", b"").decode()
     query_params = parse_qs(query_string)
     speaker = query_params.get("speaker", [None])[0]
+    recorder_name = query_params.get("recorder_name", ["小安"])[0]  # 记录师名字
     conversation_id = query_params.get("conversation_id", [None])[0]
     user_id = query_params.get("user_id", [None])[0]
     mode = query_params.get("mode", ["normal"])[0]  # normal 或 profile_collection
-    print(f"[Realtime] 收到连接请求, speaker={speaker}, conversation_id={conversation_id}, user_id={user_id}, mode={mode}")
+    print(f"[Realtime] 收到连接请求, speaker={speaker}, recorder_name={recorder_name}, conversation_id={conversation_id}, user_id={user_id}, mode={mode}")
 
     client = None
     receive_task = None
@@ -150,6 +151,7 @@ async def realtime_dialog(websocket: WebSocket):
         # 创建豆包客户端
         client = DoubaoRealtimeClient(
             speaker=speaker,  # 传入音色参数
+            recorder_name=recorder_name,  # 传入记录师名字
             mode=actual_mode,  # 传入模式
             on_audio=lambda data: asyncio.create_task(on_audio(data)),
             on_text=lambda t, c: asyncio.create_task(on_text(t, c)),
@@ -181,7 +183,7 @@ async def realtime_dialog(websocket: WebSocket):
 
         if actual_mode == "profile_collection":
             # 信息收集模式
-            greeting = "您好！我是小辈，很高兴认识您。在开始记录您的故事之前，我想先了解一下您。请问我应该怎么称呼您呢？"
+            greeting = f"您好！我是{recorder_name}，很高兴认识您。在开始记录您的故事之前，我想先了解一下您。请问我应该怎么称呼您呢？"
         elif user_id:
             # 正常模式，从候选池获取开场白
             db = SessionLocal()

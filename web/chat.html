@@ -5,6 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>对话 - 回忆录</title>
     <link rel="stylesheet" href="css/style.css">
+    <style>
+        .welcome-modal .modal-content {
+            max-width: 400px;
+            text-align: center;
+            padding: 40px 32px;
+        }
+        .welcome-modal h2 {
+            font-size: 24px;
+            font-weight: 400;
+            margin-bottom: 16px;
+            color: var(--color-text);
+        }
+        .welcome-modal p {
+            font-size: 16px;
+            color: var(--color-text-light);
+            margin-bottom: 32px;
+            line-height: 1.8;
+        }
+        .welcome-modal .btn {
+            min-width: 160px;
+        }
+    </style>
 </head>
 <body>
     <div class="container chat-page">
@@ -35,6 +57,15 @@
                 <p class="voice-status" id="voiceStatus">等待连接</p>
             </div>
         </main>
+    </div>
+
+    <!-- 信息收集完成弹窗 -->
+    <div class="modal welcome-modal" id="welcomeModal" style="display: none;">
+        <div class="modal-content">
+            <h2>很高兴认识您！</h2>
+            <p id="welcomeMessage">接下来就可以开始记录您的故事了。</p>
+            <button class="btn btn-primary" onclick="goHome()">开始记录</button>
+        </div>
     </div>
 
     <script src="js/api.js"></script>

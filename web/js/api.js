@@ -49,6 +49,12 @@ const api = {
         async getProfile(userId) {
             return api.request(`/user/${userId}/profile`);
         },
+
+        async delete(userId) {
+            return api.request(`/user/${userId}`, {
+                method: 'DELETE',
+            });
+        },
     },
 
     // 对话相关

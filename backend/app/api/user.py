@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
 from app.database import get_db
-from app.models import User
+from app.models import User, Conversation, Message, Memoir, GreetingCandidate
 
 router = APIRouter()
 
@@ -52,7 +52,6 @@ def get_user(user_id: str, db: Session = Depends(get_db)):
     """获取用户信息"""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="用户不存在")
     return user
 
@@ -62,7 +61,6 @@ def update_settings(user_id: str, settings: UserSettings, db: Session = Depends(
     """更新用户设置"""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="用户不存在")
 
     user.settings = settings.model_dump()
@@ -76,7 +74,6 @@ def get_user_profile(user_id: str, db: Session = Depends(get_db)):
     """获取用户基础信息（用于判断是否需要信息收集）"""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="用户不存在")
 
     return UserProfileResponse(
@@ -85,3 +82,31 @@ def get_user_profile(user_id: str, db: Session = Depends(get_db)):
         hometown=user.hometown,
         profile_completed=user.profile_completed or False
     )
+
+
+@router.delete("/{user_id}")
+def delete_user(user_id: str, db: Session = Depends(get_db)):
+    """注销用户账号，删除所有相关数据"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    # 删除用户的所有回忆录
+    db.query(Memoir).filter(Memoir.user_id == user_id).delete()
+
+    # 删除用户的所有对话消息
+    conversations = db.query(Conversation).filter(Conversation.user_id == user_id).all()
+    for conv in conversations:
+        db.query(Message).filter(Message.conversation_id == conv.id).delete()
+
+    # 删除用户的所有对话
+    db.query(Conversation).filter(Conversation.user_id == user_id).delete()
+
+    # 删除用户的开场白候选
+    db.query(GreetingCandidate).filter(GreetingCandidate.user_id == user_id).delete()
+
+    # 删除用户
+    db.delete(user)
+    db.commit()
+
+    return {"message": "账号已注销"}

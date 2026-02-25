@@ -118,6 +118,7 @@ class DoubaoRealtimeClient:
     def __init__(
         self,
         speaker: Optional[str] = None,
+        recorder_name: str = "小安",  # 记录师名字
         mode: str = "normal",  # normal 或 profile_collection
         on_audio: Optional[Callable[[bytes], None]] = None,
         on_text: Optional[Callable[[str, str], None]] = None,  # (type, text)
@@ -126,12 +127,13 @@ class DoubaoRealtimeClient:
         self.ws = None
         self.session_id = str(uuid.uuid4())
         self.speaker = speaker or settings.doubao_speaker  # 使用传入的音色或默认音色
+        self.recorder_name = recorder_name
         self.mode = mode
         self.on_audio = on_audio
         self.on_text = on_text
         self.on_event = on_event
         self.is_connected = False
-        self._last_response_text = ""  # 用于去重
+        self._greeting_sent = None  # 记录我们发送的开场白，用于去重
 
     async def connect(self) -> bool:
         """建立 WebSocket 连接"""
@@ -168,7 +170,7 @@ class DoubaoRealtimeClient:
 
             # 根据模式选择 system_role
             if self.mode == "profile_collection":
-                system_role = """你是一位回忆录记录师的助手，正在与一位新用户进行初次见面。你的任务是通过自然的对话了解用户的基本信息。
+                system_role = f"""你是一位回忆录记录师，名叫{self.recorder_name}，正在与一位新用户进行初次见面。你的任务是通过自然的对话了解用户的基本信息。
 
 ## 需要收集的信息
 1. 称呼 - 用户希望被怎么称呼
@@ -180,18 +182,25 @@ class DoubaoRealtimeClient:
 - 每次只问一个问题
 - 得到回答后要有回应，然后再问下一个问题
 - 语气温和、尊重
+- 自称"{self.recorder_name}"或"我"
 
 ## 对话流程
 1. 先问称呼
 2. 然后自然地问年龄或出生年份（可以说"您是哪年出生的"或"您今年多大年纪了"）
 3. 最后问家乡（可以说"您老家是哪里的"或"您是在哪里长大的"）
-4. 收集完信息后，可以简单聊几句，表示期待下次正式开始记录故事
+4. 收集完信息后，表示很高兴认识对方，期待下次正式开始记录故事
+
+## 结束对话
+当三个信息（称呼、年龄/出生年份、家乡）都收集完毕后：
+1. 先友好地总结一下，说很高兴认识对方
+2. 然后在回复的最后加上标记：【信息收集完成】
 
 ## 注意
 - 不要一次问太多问题
 - 如果用户主动聊起往事，可以简单回应，但不要深入展开（告诉用户下次正式开始记录）
-- 保持对话简短友好"""
-                speaking_style = "你说话像一个温和有礼的晚辈，语速适中，每次只问一个问题。"
+- 保持对话简短友好
+- 必须在收集完所有信息后才加【信息收集完成】标记"""
+                speaking_style = f"你是{self.recorder_name}，说话温和有礼，语速适中，每次只问一个问题。"
             else:
                 system_role = """你是一位正在采访用户、帮助他们留下人生故事的记录师。你的目标是引导用户讲出有深度、有画面感、有情感的回忆。
 
@@ -250,7 +259,7 @@ class DoubaoRealtimeClient:
                     },
                 },
                 "dialog": {
-                    "bot_name": "小辈",
+                    "bot_name": self.recorder_name,
                     "system_role": system_role,
                     "speaking_style": speaking_style,
                     "location": {
@@ -321,6 +330,9 @@ class DoubaoRealtimeClient:
 
         if content is None:
             content = random.choice(GREETINGS)
+
+        # 记录我们发送的开场白，用于去重
+        self._greeting_sent = content
         if not self.ws:
             return
 
@@ -391,15 +403,12 @@ class DoubaoRealtimeClient:
                                 self.on_text('asr', text)
                             elif event != 451:
                                 # AI 回复 - 去重检查
-                                if text != self._last_response_text:
-                                    self._last_response_text = text
-                                    self.on_text('response', text)
+                                # 如果收到的文本和我们发送的开场白相同，跳过（服务器回显）
+                                if self._greeting_sent and text == self._greeting_sent:
+                                    print(f"[Doubao] 跳过开场白回显: {text[:30]}...")
+                                    self._greeting_sent = None  # 只跳过一次
                                 else:
-                                    print(f"[Doubao] 跳过重复文本: {text[:30]}...")
-
-                    # TTS 开始事件 - 重置去重状态
-                    if event == 350:
-                        self._last_response_text = ""
+                                    self.on_text('response', text)
 
                     # 会话结束事件
                     if event in (152, 153):

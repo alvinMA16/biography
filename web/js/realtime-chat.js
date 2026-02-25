@@ -1,6 +1,8 @@
 // 实时对话页面逻辑 - 基于豆包实时对话API
 
 let conversationId = null;
+let isProfileCollectionMode = false;  // 是否是信息收集模式
+let autoEndTriggered = false;  // 防止自动结束重复触发
 
 // WebSocket 相关
 let ws = null;
@@ -39,6 +41,20 @@ window.onload = async function() {
         return;
     }
 
+    // 检查是否是信息收集模式
+    const userId = storage.get('userId');
+    if (userId) {
+        try {
+            const profile = await api.user.getProfile(userId);
+            isProfileCollectionMode = !profile.profile_completed;
+            if (isProfileCollectionMode) {
+                console.log('进入信息收集模式');
+            }
+        } catch (error) {
+            console.error('获取用户信息失败:', error);
+        }
+    }
+
     showLoading('正在连接');
 
     // 初始化音频播放
@@ -50,31 +66,32 @@ window.onload = async function() {
 
 // ========== WebSocket 连接 ==========
 
-// 记录师配置
-const RECORDERS = {
-    female: { speaker: 'zh_female_vv_jupiter_bigtts' },
-    male: { speaker: 'zh_male_xiaotian_jupiter_bigtts' }
+// 记录师信息
+const RECORDER_INFO = {
+    female: { name: '小安', speaker: 'zh_female_vv_jupiter_bigtts' },
+    male: { name: '小川', speaker: 'zh_male_xiaotian_jupiter_bigtts' }
 };
 
 async function connectWebSocket() {
     const hostname = window.location.hostname || 'localhost';
 
-    // 获取选中的记录师音色
+    // 获取选中的记录师
     const selectedRecorder = storage.get('selectedRecorder') || 'female';
-    const speaker = RECORDERS[selectedRecorder]?.speaker || RECORDERS.female.speaker;
+    const recorderInfo = RECORDER_INFO[selectedRecorder] || RECORDER_INFO.female;
 
     // 获取用户ID
     const userId = storage.get('userId');
 
-    // 构建 WebSocket URL，带上音色、对话ID和用户ID参数
+    // 构建 WebSocket URL，带上音色、记录师名字、对话ID和用户ID参数
     const params = new URLSearchParams({
-        speaker: speaker,
+        speaker: recorderInfo.speaker,
+        recorder_name: recorderInfo.name,
         conversation_id: conversationId,
         user_id: userId
     });
     const wsUrl = `ws://${hostname}:8001/api/realtime/dialog?${params.toString()}`;
 
-    console.log('连接 WebSocket:', wsUrl, '记录师:', selectedRecorder, '用户:', userId);
+    console.log('连接 WebSocket:', wsUrl, '记录师:', recorderInfo.name, '用户:', userId);
 
     try {
         ws = new WebSocket(wsUrl);
@@ -134,7 +151,19 @@ function handleServerMessage(message) {
                 // AI 回复文字 - 累积并显示
                 if (isAISpeaking && message.content) {
                     currentAIResponse += message.content;  // 累积文本
-                    updateAIText(currentAIResponse);
+                    // 检查是否包含结束标记
+                    const displayText = currentAIResponse.replace('【信息收集完成】', '').trim();
+                    updateAIText(displayText);
+
+                    // 检测信息收集完成标记
+                    if (isProfileCollectionMode && !autoEndTriggered && currentAIResponse.includes('【信息收集完成】')) {
+                        autoEndTriggered = true;  // 防止重复触发
+                        console.log('检测到信息收集完成标记，准备自动结束对话');
+                        // 延迟一点时间让用户听完AI说的话
+                        setTimeout(() => {
+                            autoEndProfileCollection();
+                        }, 3000);
+                    }
                 }
             }
             break;
@@ -439,8 +468,38 @@ function base64ToArrayBuffer(base64) {
 
 // ========== 页面控制 ==========
 
+// 自动结束信息收集（由AI触发）
+async function autoEndProfileCollection() {
+    console.log('自动结束信息收集对话');
+
+    stopRecording();
+
+    if (ws) {
+        ws.send(JSON.stringify({ type: 'stop' }));
+        ws.close();
+    }
+
+    updateAIText('正在保存...');
+    updateVoiceStatus('请稍候');
+
+    try {
+        // 结束对话
+        await api.conversation.endQuick(conversationId);
+        // 显示欢迎弹窗
+        showWelcomeModal();
+    } catch (error) {
+        console.error('自动结束对话失败:', error);
+        // 出错也显示弹窗，让用户能回到主页
+        showWelcomeModal();
+    }
+}
+
 async function endChat() {
-    if (!confirm('确定要结束这次对话吗？')) {
+    const confirmMsg = isProfileCollectionMode
+        ? '确定要结束这次对话吗？'
+        : '确定要结束这次对话吗？';
+
+    if (!confirm(confirmMsg)) {
         return;
     }
 
@@ -451,28 +510,49 @@ async function endChat() {
         ws.close();
     }
 
-    const generateMemoir = confirm('是否要把这次对话整理成回忆录？');
-
     updateAIText('正在保存...');
     updateVoiceStatus('请稍候');
 
     try {
-        // 结束对话（快速保存，不生成摘要）
+        // 结束对话（后台会处理摘要生成和开场白刷新）
         await api.conversation.endQuick(conversationId);
 
-        if (generateMemoir) {
-            // 异步生成回忆录，不等待完成
-            const userId = storage.get('userId');
-            api.memoir.generateAsync(userId, conversationId);
-            alert('对话已保存，回忆录正在后台生成中...');
+        if (isProfileCollectionMode) {
+            // 信息收集模式：显示欢迎弹窗
+            showWelcomeModal();
         } else {
-            alert('对话已保存');
-        }
+            // 正常对话模式：询问是否生成回忆录
+            const generateMemoir = confirm('是否要把这次对话整理成回忆录？');
 
-        goHome();
+            if (generateMemoir) {
+                // 异步生成回忆录，不等待完成
+                const userId = storage.get('userId');
+                api.memoir.generateAsync(userId, conversationId);
+                alert('对话已保存，回忆录正在后台生成中...');
+            } else {
+                alert('对话已保存');
+            }
+
+            goHome();
+        }
     } catch (error) {
         console.error('结束对话失败:', error);
         alert('操作失败: ' + error.message);
+        goHome();
+    }
+}
+
+// 显示欢迎弹窗（信息收集完成后）
+function showWelcomeModal() {
+    // 标记信息收集已完成，避免主页重复触发引导
+    storage.set('profileJustCompleted', true);
+
+    const modal = document.getElementById('welcomeModal');
+    if (modal) {
+        modal.style.display = 'flex';
+    } else {
+        // 如果没有弹窗元素，用 alert 兜底
+        alert('很高兴认识您！接下来就可以开始记录您的故事了。');
         goHome();
     }
 }
