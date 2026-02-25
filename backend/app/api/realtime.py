@@ -162,3 +162,91 @@ async def realtime_dialog(websocket: WebSocket):
             await websocket.close()
         except:
             pass
+
+
+@router.websocket("/preview")
+async def realtime_preview(websocket: WebSocket):
+    """
+    TTS 预览端点 - 用指定音色朗读一段文字
+    参数:
+    - speaker: 音色
+    - text: 要朗读的文字
+    """
+    await websocket.accept()
+
+    # 解析参数
+    query_string = websocket.scope.get("query_string", b"").decode()
+    query_params = parse_qs(query_string)
+    speaker = query_params.get("speaker", [None])[0]
+    text = query_params.get("text", ["您好"])[0]
+
+    print(f"[Preview] speaker={speaker}, text={text}")
+
+    client = None
+    receive_task = None
+    tts_done = asyncio.Event()
+
+    async def on_audio(audio_data: bytes):
+        try:
+            await websocket.send_json({
+                "type": "audio",
+                "data": base64.b64encode(audio_data).decode()
+            })
+        except Exception as e:
+            print(f"发送预览音频失败: {e}")
+
+    async def on_event(event: int, payload: dict):
+        # TTS 结束事件
+        if event == 359:
+            tts_done.set()
+
+    try:
+        client = DoubaoRealtimeClient(
+            speaker=speaker,
+            on_audio=lambda data: asyncio.create_task(on_audio(data)),
+            on_event=lambda e, p: asyncio.create_task(on_event(e, p)),
+        )
+
+        connected = await client.connect()
+        if not connected:
+            await websocket.send_json({"type": "error", "message": "连接失败"})
+            await websocket.close()
+            return
+
+        # 启动接收循环
+        receive_task = asyncio.create_task(client.receive_loop())
+
+        # 发送要朗读的文字
+        await client.say_hello(text)
+
+        # 等待 TTS 完成（最多10秒）
+        try:
+            await asyncio.wait_for(tts_done.wait(), timeout=10)
+        except asyncio.TimeoutError:
+            pass
+
+        await websocket.send_json({"type": "done"})
+
+    except Exception as e:
+        print(f"Preview 错误: {e}")
+
+    finally:
+        if receive_task:
+            receive_task.cancel()
+            try:
+                await receive_task
+            except asyncio.CancelledError:
+                pass
+
+        if client:
+            try:
+                await client.finish_session()
+                await client.finish_connection()
+                await client.close()
+            except:
+                pass
+
+        try:
+            await websocket.close()
+        except:
+            pass

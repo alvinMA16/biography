@@ -8,15 +8,17 @@
 </head>
 <body>
     <div class="container home-page">
-        <!-- 用户菜单 -->
-        <div class="user-menu">
-            <button class="user-avatar" onclick="toggleDropdown()">
-                <svg viewBox="0 0 24 24">
-                    <circle cx="12" cy="8" r="4"/>
-                    <path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>
+        <!-- 菜单 -->
+        <div class="menu-container">
+            <button class="menu-btn" onclick="toggleDropdown()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="6" x2="21" y2="6"/>
+                    <line x1="3" y1="12" x2="21" y2="12"/>
+                    <line x1="3" y1="18" x2="21" y2="18"/>
                 </svg>
             </button>
             <div class="dropdown" id="userDropdown">
+                <button class="dropdown-item" onclick="openRecorderSelect()">选择记录师</button>
                 <button class="dropdown-item" onclick="viewMemoirs()">我的回忆录</button>
                 <div class="dropdown-divider"></div>
                 <button class="dropdown-item" onclick="logout()">登出</button>
@@ -44,6 +46,37 @@
         </main>
     </div>
 
+    <!-- 选择记录师弹窗 -->
+    <div class="modal" id="recorderModal" style="display: none;">
+        <div class="modal-content recorder-modal">
+            <div class="modal-header">
+                <h2>选择您的人生记录师</h2>
+                <button class="btn-close" onclick="closeRecorderModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="recorder-options">
+                    <div class="recorder-card" id="recorderFemale" onclick="selectRecorder('female')">
+                        <div class="recorder-avatar">
+                            <img src="assets/忆安.png" alt="忆安">
+                        </div>
+                        <div class="recorder-name">忆安</div>
+                        <div class="recorder-desc">温柔细腻，善于倾听</div>
+                    </div>
+                    <div class="recorder-card" id="recorderMale" onclick="selectRecorder('male')">
+                        <div class="recorder-avatar">
+                            <img src="assets/言川.png" alt="言川">
+                        </div>
+                        <div class="recorder-name">言川</div>
+                        <div class="recorder-desc">沉稳耐心，娓娓道来</div>
+                    </div>
+                </div>
+                <div class="recorder-actions">
+                    <button class="btn btn-primary" onclick="confirmRecorder()">确认选择</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="js/api.js"></script>
     <script src="js/app.js"></script>
     <script>
@@ -54,9 +87,16 @@
         // 点击页面其他地方关闭下拉菜单
         document.addEventListener('click', function(e) {
             const dropdown = document.getElementById('userDropdown');
-            const avatar = document.querySelector('.user-avatar');
-            if (!avatar.contains(e.target) && !dropdown.contains(e.target)) {
+            const menuBtn = document.querySelector('.menu-btn');
+            if (!menuBtn.contains(e.target) && !dropdown.contains(e.target)) {
                 dropdown.classList.remove('show');
+            }
+        });
+
+        // 点击弹窗外部关闭弹窗
+        document.getElementById('recorderModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeRecorderModal();
             }
         });
     </script>
