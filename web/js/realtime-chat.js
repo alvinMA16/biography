@@ -27,6 +27,9 @@ const SAMPLE_RATE_INPUT = 16000;   // 输入采样率
 const SAMPLE_RATE_OUTPUT = 24000; // 输出采样率（豆包TTS输出）
 const CHUNK_SIZE = 3200;          // 每次发送的音频块大小
 
+// Debug 模式
+const DEBUG_MODE = true;  // 可以从后端获取或配置
+
 // 页面加载
 window.onload = async function() {
     conversationId = storage.get('currentConversationId');
@@ -35,6 +38,30 @@ window.onload = async function() {
         alert('未找到对话');
         goHome();
         return;
+    }
+
+    // Debug 模式显示控制面板
+    if (DEBUG_MODE) {
+        document.getElementById('debugPanel').style.display = 'flex';
+
+        // 监听音色切换
+        const voiceSelect = document.getElementById('voiceSelect');
+        if (voiceSelect) {
+            voiceSelect.addEventListener('change', async () => {
+                if (isConnected) {
+                    // 断开当前连接并重连
+                    showLoading('正在切换音色');
+                    stopRecording();
+                    clearAudioQueue();
+                    if (ws) {
+                        ws.close();
+                        ws = null;
+                    }
+                    isConnected = false;
+                    await connectWebSocket();
+                }
+            });
+        }
     }
 
     showLoading('正在连接');
@@ -50,7 +77,18 @@ window.onload = async function() {
 
 async function connectWebSocket() {
     const hostname = window.location.hostname || 'localhost';
-    const wsUrl = `ws://${hostname}:8001/api/realtime/dialog`;
+
+    // 获取选择的音色
+    const voiceSelect = document.getElementById('voiceSelect');
+    const selectedVoice = voiceSelect ? voiceSelect.value : '';
+
+    // 构建 WebSocket URL，带上音色参数
+    let wsUrl = `ws://${hostname}:8001/api/realtime/dialog`;
+    if (selectedVoice) {
+        wsUrl += `?speaker=${encodeURIComponent(selectedVoice)}`;
+    }
+
+    console.log('连接 WebSocket:', wsUrl);
 
     try {
         ws = new WebSocket(wsUrl);

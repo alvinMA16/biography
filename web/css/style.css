@@ -616,3 +616,36 @@ body {
         font-size: 20px;
     }
 }
+
+/* Debug 面板 */
+.debug-panel {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: #FFF3CD;
+    border-bottom: 1px solid #E8E4DE;
+    font-family: var(--font-sans);
+    font-size: 14px;
+}
+
+.debug-panel label {
+    color: #856404;
+    font-weight: 500;
+}
+
+.debug-panel select {
+    flex: 1;
+    max-width: 200px;
+    padding: 6px 10px;
+    border: 1px solid #FFEEBA;
+    border-radius: 4px;
+    background: white;
+    font-size: 14px;
+    color: var(--color-text);
+}
+
+.debug-panel select:focus {
+    outline: none;
+    border-color: #856404;
+}

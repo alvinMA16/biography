@@ -5,6 +5,7 @@
 import asyncio
 import json
 import base64
+from urllib.parse import parse_qs
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.services.doubao_realtime import DoubaoRealtimeClient
@@ -29,6 +30,12 @@ async def realtime_dialog(websocket: WebSocket):
     - {"type": "status", "status": "connected|disconnected|error", "message": "..."}
     """
     await websocket.accept()
+
+    # 从 URL 查询参数中获取 speaker
+    query_string = websocket.scope.get("query_string", b"").decode()
+    query_params = parse_qs(query_string)
+    speaker = query_params.get("speaker", [None])[0]
+    print(f"[Realtime] 收到连接请求, speaker={speaker}")
 
     client = None
     receive_task = None
@@ -68,6 +75,7 @@ async def realtime_dialog(websocket: WebSocket):
     try:
         # 创建豆包客户端
         client = DoubaoRealtimeClient(
+            speaker=speaker,  # 传入音色参数
             on_audio=lambda data: asyncio.create_task(on_audio(data)),
             on_text=lambda t, c: asyncio.create_task(on_text(t, c)),
             on_event=lambda e, p: asyncio.create_task(on_event(e, p)),
