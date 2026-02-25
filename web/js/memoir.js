@@ -75,11 +75,18 @@ function renderMemoirs(memoirs) {
         return `
             <div class="memoir-item ${isGenerating ? 'generating' : ''}"
                  ${isGenerating ? '' : `onclick="viewMemoir('${memoir.id}')"`}>
-                <div class="memoir-item-header">
-                    <h3>${memoir.title}</h3>
-                    ${isGenerating ? '<span class="memoir-status">撰写中...</span>' : ''}
+                <div class="memoir-item-content">
+                    <div class="memoir-item-header">
+                        <h3>${memoir.title}</h3>
+                        ${isGenerating ? '<span class="memoir-status">撰写中...</span>' : ''}
+                    </div>
+                    ${timeText ? `<p class="memoir-time">${timeText}</p>` : ''}
                 </div>
-                ${timeText ? `<p class="memoir-time">${timeText}</p>` : ''}
+                <button class="btn-delete" onclick="deleteMemoir(event, '${memoir.id}')" title="删除">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                </button>
             </div>
         `;
     }).join('');
@@ -115,6 +122,23 @@ function showEmptyState() {
 // 查看回忆录详情 - 跳转到详情页
 function viewMemoir(memoirId) {
     window.location.href = `memoir-detail.html?id=${memoirId}`;
+}
+
+// 删除回忆
+async function deleteMemoir(event, memoirId) {
+    event.stopPropagation(); // 阻止触发 viewMemoir
+
+    if (!confirm('确定要删除这条回忆吗？')) {
+        return;
+    }
+
+    try {
+        await api.memoir.delete(memoirId);
+        await loadMemoirs(); // 重新加载列表
+    } catch (error) {
+        console.error('删除失败:', error);
+        alert('删除失败: ' + error.message);
+    }
 }
 
 // 关闭弹窗

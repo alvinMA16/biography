@@ -118,6 +118,7 @@ class DoubaoRealtimeClient:
     def __init__(
         self,
         speaker: Optional[str] = None,
+        mode: str = "normal",  # normal 或 profile_collection
         on_audio: Optional[Callable[[bytes], None]] = None,
         on_text: Optional[Callable[[str, str], None]] = None,  # (type, text)
         on_event: Optional[Callable[[int, Dict], None]] = None,
@@ -125,10 +126,12 @@ class DoubaoRealtimeClient:
         self.ws = None
         self.session_id = str(uuid.uuid4())
         self.speaker = speaker or settings.doubao_speaker  # 使用传入的音色或默认音色
+        self.mode = mode
         self.on_audio = on_audio
         self.on_text = on_text
         self.on_event = on_event
         self.is_connected = False
+        self._last_response_text = ""  # 用于去重
 
     async def connect(self) -> bool:
         """建立 WebSocket 连接"""
@@ -163,24 +166,34 @@ class DoubaoRealtimeClient:
             response = await self.ws.recv()
             print(f"StartConnection response: {parse_response(response)}")
 
-            # StartSession request
-            session_config = {
-                "asr": {
-                    "extra": {
-                        "end_smooth_window_ms": 1500,
-                    },
-                },
-                "tts": {
-                    "speaker": self.speaker,
-                    "audio_config": {
-                        "channel": 1,
-                        "format": "pcm_s16le",  # 16bit位深，小端序
-                        "sample_rate": 24000
-                    },
-                },
-                "dialog": {
-                    "bot_name": "小辈",
-                    "system_role": """你是一位正在采访长辈、帮助他们留下人生故事的晚辈。你的目标是引导长辈讲出有深度、有画面感、有情感的回忆。
+            # 根据模式选择 system_role
+            if self.mode == "profile_collection":
+                system_role = """你是一位回忆录记录师的助手，正在与一位新用户进行初次见面。你的任务是通过自然的对话了解用户的基本信息。
+
+## 需要收集的信息
+1. 称呼 - 用户希望被怎么称呼
+2. 出生年份 - 大概是哪一年出生的
+3. 家乡 - 在哪里出生或长大
+
+## 对话风格
+- 像晚辈和长辈聊天一样自然
+- 每次只问一个问题
+- 得到回答后要有回应，然后再问下一个问题
+- 语气温和、尊重
+
+## 对话流程
+1. 先问称呼
+2. 然后自然地问年龄或出生年份（可以说"您是哪年出生的"或"您今年多大年纪了"）
+3. 最后问家乡（可以说"您老家是哪里的"或"您是在哪里长大的"）
+4. 收集完信息后，可以简单聊几句，表示期待下次正式开始记录故事
+
+## 注意
+- 不要一次问太多问题
+- 如果用户主动聊起往事，可以简单回应，但不要深入展开（告诉用户下次正式开始记录）
+- 保持对话简短友好"""
+                speaking_style = "你说话像一个温和有礼的晚辈，语速适中，每次只问一个问题。"
+            else:
+                system_role = """你是一位正在采访用户、帮助他们留下人生故事的记录师。你的目标是引导用户讲出有深度、有画面感、有情感的回忆。
 
 ## 核心原则
 你不是在闲聊，而是在做一次有价值的人生访谈。每个问题都要能挖掘出可以写进回忆录的素材。
@@ -212,14 +225,34 @@ class DoubaoRealtimeClient:
 - 您希望后辈从这个故事里学到什么？
 
 ## 对话风格
-- 每次只问一个问题，等长辈说完再追问
-- 先简短回应长辈说的内容（具体回应，不要泛泛说"真有意思"）
+- 每次只问一个问题，等用户说完再追问
+- 先简短回应用户说的内容（具体回应，不要泛泛说"真有意思"）
 - 用"您"称呼，语气温和但不过分客套
-- 如果长辈讲到动情处，安静倾听，不急着追问
+- 如果用户讲到动情处，安静倾听，不急着追问
 
 ## 开场方向参考
-可以从这些话题切入：童年记忆、求学经历、工作生涯、婚姻家庭、人生转折点、最自豪的事、最遗憾的事、想对后辈说的话。""",
-                    "speaking_style": "你说话温和但不啰嗦，每句话都有目的。回应时先具体提到长辈刚才说的内容，再自然地追问下一个有价值的问题。",
+可以从这些话题切入：童年记忆、求学经历、工作生涯、婚姻家庭、人生转折点、最自豪的事、最遗憾的事、想对后辈说的话。"""
+                speaking_style = "你说话温和但不啰嗦，每句话都有目的。回应时先具体提到用户刚才说的内容，再自然地追问下一个有价值的问题。"
+
+            # StartSession request
+            session_config = {
+                "asr": {
+                    "extra": {
+                        "end_smooth_window_ms": 1500,
+                    },
+                },
+                "tts": {
+                    "speaker": self.speaker,
+                    "audio_config": {
+                        "channel": 1,
+                        "format": "pcm_s16le",  # 16bit位深，小端序
+                        "sample_rate": 24000
+                    },
+                },
+                "dialog": {
+                    "bot_name": "小辈",
+                    "system_role": system_role,
+                    "speaking_style": speaking_style,
                     "location": {
                         "city": "北京",
                     },
@@ -273,8 +306,21 @@ class DoubaoRealtimeClient:
         except Exception as e:
             print(f"发送音频失败: {e}")
 
-    async def say_hello(self, content: str = "您好！今天想听您讲讲您的故事。我特别想知道，您小时候住在哪里？那时候的生活是什么样的？") -> None:
-        """发送开场白"""
+    async def say_hello(self, content: str = None) -> None:
+        """发送开场白，如果不传入内容则随机选择一个"""
+        import random
+
+        # 多个开场白模板，每次随机选择
+        GREETINGS = [
+            "您好！今天想听您讲讲您的故事。您最近有没有想起什么往事？",
+            "您好！很高兴能陪您聊聊天。您小时候住在哪里？那时候的生活是什么样的？",
+            "您好！今天想请您讲讲您的人生故事。您还记得小时候印象最深的一件事吗？",
+            "您好！我特别想听听您的故事。您年轻的时候是做什么工作的？",
+            "您好！今天咱们聊聊您的经历吧。您还记得上学时候的事情吗？",
+        ]
+
+        if content is None:
+            content = random.choice(GREETINGS)
         if not self.ws:
             return
 
@@ -313,6 +359,9 @@ class DoubaoRealtimeClient:
 
                     # 提取文本内容
                     if isinstance(payload, dict):
+                        text = None
+                        is_asr = False
+
                         # 从 results 数组中提取文本
                         results = payload.get('results', [])
                         if results and isinstance(results, list) and len(results) > 0:
@@ -322,27 +371,35 @@ class DoubaoRealtimeClient:
                                 is_interim = result.get('is_interim', True)
 
                                 # Event 451 是 ASR 事件（用户说的话）
-                                # is_interim=False 表示最终结果
-                                if event == 451 and text:
-                                    if not is_interim:
-                                        # 最终 ASR 结果
-                                        print(f"[Doubao] ASR 最终结果: {text[:50]}...")
-                                        if self.on_text:
-                                            self.on_text('asr', text)
-                                    # 中间结果不处理
-
-                                # 其他事件的 text 是 AI 回复
-                                elif event != 451 and text:
-                                    if self.on_text:
-                                        self.on_text('response', text)
+                                if event == 451:
+                                    if text and not is_interim:
+                                        is_asr = True
+                                    else:
+                                        text = None  # 忽略中间结果
 
                         # 兼容其他格式（没有 results 数组的情况）
-                        if not results:
+                        if not text and not results:
                             text = payload.get('text') or payload.get('content')
-                            if text and self.on_text:
-                                # 非 451 事件的文本是 AI 回复
-                                if event != 451:
+                            # Event 451 的这种格式也是 ASR
+                            if event == 451:
+                                is_asr = True
+
+                        # 发送文本（带去重）
+                        if text and self.on_text:
+                            if is_asr:
+                                print(f"[Doubao] ASR 最终结果: {text[:50]}...")
+                                self.on_text('asr', text)
+                            elif event != 451:
+                                # AI 回复 - 去重检查
+                                if text != self._last_response_text:
+                                    self._last_response_text = text
                                     self.on_text('response', text)
+                                else:
+                                    print(f"[Doubao] 跳过重复文本: {text[:30]}...")
+
+                    # TTS 开始事件 - 重置去重状态
+                    if event == 350:
+                        self._last_response_text = ""
 
                     # 会话结束事件
                     if event in (152, 153):

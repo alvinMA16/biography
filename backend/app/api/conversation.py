@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -7,6 +7,10 @@ from typing import List, Optional
 from app.database import get_db, SessionLocal
 from app.services.chat_service import chat_service
 from app.services.llm_service import llm_service
+from app.services.summary_service import summary_service
+from app.services.greeting_service import greeting_service
+from app.services.profile_service import profile_service
+from app.models import Conversation, User
 
 router = APIRouter()
 
@@ -126,12 +130,55 @@ def end_conversation(conversation_id: str, db: Session = Depends(get_db)):
     return conversation
 
 
+def process_conversation_end(conversation_id: str, user_id: str):
+    """后台处理对话结束后的任务"""
+    db = SessionLocal()
+    try:
+        print(f"[Conversation] 开始处理对话结束任务: {conversation_id}")
+
+        # 检查用户是否完成了信息收集
+        user = db.query(User).filter(User.id == user_id).first()
+
+        if user and not user.profile_completed:
+            # 用户未完成信息收集，尝试从对话中提取信息
+            print(f"[Conversation] 用户未完成信息收集，尝试提取...")
+            profile_service.extract_and_update_profile(db, conversation_id, user_id)
+            # 如果信息收集完成，generate_initial_greetings 会在 profile_service 中被调用
+        else:
+            # 正常对话结束流程
+            # 1. 生成对话摘要
+            summary_service.generate_summary(db, conversation_id)
+
+            # 2. 刷新用户的开场白池
+            greeting_service.refresh_greetings(db, user_id)
+
+        print(f"[Conversation] 对话结束任务完成: {conversation_id}")
+    except Exception as e:
+        print(f"[Conversation] 对话结束任务失败: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        db.close()
+
+
 @router.post("/{conversation_id}/end-quick")
-def end_conversation_quick(conversation_id: str, db: Session = Depends(get_db)):
-    """快速结束对话（不生成摘要）"""
+def end_conversation_quick(
+    conversation_id: str,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """快速结束对话（后台生成摘要和刷新开场白）"""
     conversation = chat_service.end_conversation_quick(db, conversation_id)
     if not conversation:
         raise HTTPException(status_code=404, detail="对话不存在")
+
+    # 后台任务：生成摘要、刷新开场白
+    background_tasks.add_task(
+        process_conversation_end,
+        conversation_id,
+        conversation.user_id
+    )
+
     return {"status": "ok", "conversation_id": conversation_id}
 
 

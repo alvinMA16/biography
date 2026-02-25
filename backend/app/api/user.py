@@ -22,9 +22,19 @@ class UserResponse(BaseModel):
     id: str
     nickname: Optional[str]
     settings: Dict[str, Any]
+    profile_completed: bool = False
+    birth_year: Optional[int] = None
+    hometown: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+
+class UserProfileResponse(BaseModel):
+    nickname: Optional[str]
+    birth_year: Optional[int]
+    hometown: Optional[str]
+    profile_completed: bool
 
 
 @router.post("/create", response_model=UserResponse)
@@ -59,3 +69,19 @@ def update_settings(user_id: str, settings: UserSettings, db: Session = Depends(
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.get("/{user_id}/profile", response_model=UserProfileResponse)
+def get_user_profile(user_id: str, db: Session = Depends(get_db)):
+    """获取用户基础信息（用于判断是否需要信息收集）"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    return UserProfileResponse(
+        nickname=user.nickname,
+        birth_year=user.birth_year,
+        hometown=user.hometown,
+        profile_completed=user.profile_completed or False
+    )

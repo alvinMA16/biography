@@ -9,8 +9,9 @@ from urllib.parse import parse_qs
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.services.doubao_realtime import DoubaoRealtimeClient
+from app.services.greeting_service import greeting_service
 from app.database import SessionLocal
-from app.models import Message
+from app.models import Message, User
 
 router = APIRouter()
 
@@ -60,7 +61,9 @@ async def realtime_dialog(websocket: WebSocket):
     query_params = parse_qs(query_string)
     speaker = query_params.get("speaker", [None])[0]
     conversation_id = query_params.get("conversation_id", [None])[0]
-    print(f"[Realtime] 收到连接请求, speaker={speaker}, conversation_id={conversation_id}")
+    user_id = query_params.get("user_id", [None])[0]
+    mode = query_params.get("mode", ["normal"])[0]  # normal 或 profile_collection
+    print(f"[Realtime] 收到连接请求, speaker={speaker}, conversation_id={conversation_id}, user_id={user_id}, mode={mode}")
 
     client = None
     receive_task = None
@@ -132,9 +135,22 @@ async def realtime_dialog(websocket: WebSocket):
             print(f"发送事件失败: {e}")
 
     try:
+        # 检查用户是否需要收集信息
+        actual_mode = mode
+        if user_id and mode != "profile_collection":
+            db = SessionLocal()
+            try:
+                user = db.query(User).filter(User.id == user_id).first()
+                if user and not user.profile_completed:
+                    actual_mode = "profile_collection"
+                    print(f"[Realtime] 用户未完成信息收集，切换到 profile_collection 模式")
+            finally:
+                db.close()
+
         # 创建豆包客户端
         client = DoubaoRealtimeClient(
             speaker=speaker,  # 传入音色参数
+            mode=actual_mode,  # 传入模式
             on_audio=lambda data: asyncio.create_task(on_audio(data)),
             on_text=lambda t, c: asyncio.create_task(on_text(t, c)),
             on_event=lambda e, p: asyncio.create_task(on_event(e, p)),
@@ -160,8 +176,22 @@ async def realtime_dialog(websocket: WebSocket):
         # 启动接收循环
         receive_task = asyncio.create_task(client.receive_loop())
 
+        # 根据模式选择开场白
+        greeting = None
+
+        if actual_mode == "profile_collection":
+            # 信息收集模式
+            greeting = "您好！我是小辈，很高兴认识您。在开始记录您的故事之前，我想先了解一下您。请问我应该怎么称呼您呢？"
+        elif user_id:
+            # 正常模式，从候选池获取开场白
+            db = SessionLocal()
+            try:
+                greeting = greeting_service.get_random_greeting(db, user_id)
+            finally:
+                db.close()
+
         # 发送开场白
-        await client.say_hello()
+        await client.say_hello(greeting)
 
         # 处理前端消息
         while True:

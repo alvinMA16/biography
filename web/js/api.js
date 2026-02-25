@@ -45,6 +45,10 @@ const api = {
                 body: JSON.stringify(settings),
             });
         },
+
+        async getProfile(userId) {
+            return api.request(`/user/${userId}/profile`);
+        },
     },
 
     // 对话相关

@@ -63,14 +63,18 @@ async function connectWebSocket() {
     const selectedRecorder = storage.get('selectedRecorder') || 'female';
     const speaker = RECORDERS[selectedRecorder]?.speaker || RECORDERS.female.speaker;
 
-    // 构建 WebSocket URL，带上音色和对话ID参数
+    // 获取用户ID
+    const userId = storage.get('userId');
+
+    // 构建 WebSocket URL，带上音色、对话ID和用户ID参数
     const params = new URLSearchParams({
         speaker: speaker,
-        conversation_id: conversationId
+        conversation_id: conversationId,
+        user_id: userId
     });
     const wsUrl = `ws://${hostname}:8001/api/realtime/dialog?${params.toString()}`;
 
-    console.log('连接 WebSocket:', wsUrl, '记录师:', selectedRecorder);
+    console.log('连接 WebSocket:', wsUrl, '记录师:', selectedRecorder, '用户:', userId);
 
     try {
         ws = new WebSocket(wsUrl);

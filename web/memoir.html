@@ -3,14 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的回忆录</title>
+    <title>我的回忆</title>
     <link rel="stylesheet" href="css/style.css">
+    <style>
+        .memoir-item {
+            position: relative;
+        }
+        .memoir-item .btn-delete {
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--color-text-light);
+            cursor: pointer;
+            padding: 8px 12px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .memoir-item:hover .btn-delete {
+            opacity: 1;
+        }
+        .memoir-item .btn-delete:hover {
+            color: #c0392b;
+        }
+        .memoir-item-content {
+            padding-right: 40px;
+        }
+    </style>
 </head>
 <body>
     <div class="container memoir-page">
         <header class="memoir-header">
             <button class="btn-back" onclick="goHome()">返回</button>
-            <h1>我的回忆录</h1>
+            <h1>我的回忆</h1>
         </header>
 
         <main>

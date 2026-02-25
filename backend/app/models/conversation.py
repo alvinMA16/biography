@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Text, ForeignKey
+from sqlalchemy import Column, String, DateTime, Text, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import uuid
@@ -12,7 +12,8 @@ class Conversation(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
     title = Column(String(100), nullable=True)
-    topic = Column(String(50), nullable=True)
+    topic = Column(String(50), nullable=True)  # 主要主题
+    topics = Column(JSON, nullable=True)  # 涉及的所有主题标签
     summary = Column(Text, nullable=True)
     status = Column(String(20), default="active")  # active, completed
     created_at = Column(DateTime, default=datetime.utcnow)
