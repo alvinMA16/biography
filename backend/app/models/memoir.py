@@ -17,6 +17,10 @@ class Memoir(Base):
     status = Column(String(20), default="completed")  # generating, completed
     source_conversations = Column(JSON, default=list)
     order_index = Column(Integer, default=0)
+    # 时间轴相关
+    year_start = Column(Integer, nullable=True)  # 开始年份，如 1985
+    year_end = Column(Integer, nullable=True)    # 结束年份，如 1990（如果是某一年，和 year_start 相同）
+    time_period = Column(String(50), nullable=True)  # 时期描述，如 "童年"、"大学时期"
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

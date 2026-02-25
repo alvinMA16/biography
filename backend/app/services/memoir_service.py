@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from app.models import Memoir, Conversation, Message
+from app.models import Memoir, Conversation, Message, User
 from app.services.llm_service import llm_service
 from app.services.memoir_agent import memoir_agent
 
@@ -105,6 +105,16 @@ class MemoirService:
         else:
             content = "（对话内容为空）"
 
+        # 获取用户出生年份，用于推断时间段
+        user = db.query(User).filter(User.id == user_id).first()
+        birth_year = user.birth_year if user else None
+
+        # 推断时间段
+        time_info = {"year_start": None, "year_end": None, "time_period": ""}
+        if conversation_text.strip():
+            time_info = llm_service.infer_time_period(conversation_text, birth_year)
+            print(f"[Memoir] 推断时间段: {time_info}")
+
         # 获取现有回忆录数量，用于排序
         count = db.query(Memoir).filter(Memoir.user_id == user_id).count()
 
@@ -116,7 +126,10 @@ class MemoirService:
             content=content,
             status="completed",
             source_conversations=[conversation_id],
-            order_index=count
+            order_index=count,
+            year_start=time_info.get("year_start"),
+            year_end=time_info.get("year_end"),
+            time_period=time_info.get("time_period")
         )
         db.add(memoir)
         db.commit()

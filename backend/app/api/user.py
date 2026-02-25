@@ -84,6 +84,19 @@ def get_user_profile(user_id: str, db: Session = Depends(get_db)):
     )
 
 
+@router.post("/{user_id}/complete-profile")
+def complete_profile(user_id: str, db: Session = Depends(get_db)):
+    """标记用户信息收集已完成"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    user.profile_completed = True
+    db.commit()
+
+    return {"message": "已完成"}
+
+
 @router.delete("/{user_id}")
 def delete_user(user_id: str, db: Session = Depends(get_db)):
     """注销用户账号，删除所有相关数据"""

@@ -26,6 +26,9 @@ class MemoirResponse(BaseModel):
     content: Optional[str]
     order_index: int
     conversation_id: Optional[str] = None
+    year_start: Optional[int] = None
+    year_end: Optional[int] = None
+    time_period: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -38,6 +41,9 @@ class MemoirListItem(BaseModel):
     order_index: int
     conversation_start: Optional[str] = None
     conversation_end: Optional[str] = None
+    year_start: Optional[int] = None
+    year_end: Optional[int] = None
+    time_period: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -109,15 +115,24 @@ def list_memoirs(user_id: str, db: Session = Depends(get_db)):
             "status": memoir.status or "completed",
             "order_index": memoir.order_index,
             "conversation_start": None,
-            "conversation_end": None
+            "conversation_end": None,
+            "year_start": memoir.year_start,
+            "year_end": memoir.year_end,
+            "time_period": memoir.time_period
         }
 
-        # 获取对话时间
-        if memoir.conversation:
-            if memoir.conversation.created_at:
-                item["conversation_start"] = memoir.conversation.created_at.strftime("%Y-%m-%d %H:%M")
-            if memoir.conversation.updated_at:
-                item["conversation_end"] = memoir.conversation.updated_at.strftime("%Y-%m-%d %H:%M")
+        # 获取对话时间（使用第一条和最后一条消息的时间）
+        if memoir.conversation and memoir.conversation.messages:
+            messages = memoir.conversation.messages
+            if messages:
+                # 第一条消息时间
+                first_msg = messages[0]
+                if first_msg.created_at:
+                    item["conversation_start"] = first_msg.created_at.strftime("%Y-%m-%d %H:%M")
+                # 最后一条消息时间
+                last_msg = messages[-1]
+                if last_msg.created_at:
+                    item["conversation_end"] = last_msg.created_at.strftime("%Y-%m-%d %H:%M")
 
         result.append(item)
 
