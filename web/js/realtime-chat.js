@@ -390,6 +390,34 @@ function applyFade(samples) {
 
 // ========== 界面控制 ==========
 
+// 显示轻量提示
+function showToast(message) {
+    // 创建 toast 元素
+    const toast = document.createElement('div');
+    toast.className = 'toast-message';
+    toast.textContent = message;
+    toast.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 16px 24px;
+        border-radius: 8px;
+        font-size: 16px;
+        z-index: 9999;
+        animation: fadeIn 0.3s ease;
+    `;
+    document.body.appendChild(toast);
+
+    // 自动移除
+    setTimeout(() => {
+        toast.style.animation = 'fadeOut 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 1200);
+}
+
 // 更新 AI 文字内容
 function updateAIText(text) {
     document.getElementById('aiText').textContent = text;
@@ -495,11 +523,7 @@ async function autoEndProfileCollection() {
 }
 
 async function endChat() {
-    const confirmMsg = isProfileCollectionMode
-        ? '确定要结束这次对话吗？'
-        : '确定要结束这次对话吗？';
-
-    if (!confirm(confirmMsg)) {
+    if (!confirm('确定要结束这次对话吗？')) {
         return;
     }
 
@@ -521,19 +545,14 @@ async function endChat() {
             // 信息收集模式：显示欢迎弹窗
             showWelcomeModal();
         } else {
-            // 正常对话模式：询问是否生成回忆录
-            const generateMemoir = confirm('是否要把这次对话整理成回忆录？');
-
-            if (generateMemoir) {
-                // 异步生成回忆录，不等待完成
-                const userId = storage.get('userId');
-                api.memoir.generateAsync(userId, conversationId);
-                alert('对话已保存，回忆录正在后台生成中...');
-            } else {
-                alert('对话已保存');
-            }
-
-            goHome();
+            // 正常对话模式：后台生成回忆录，直接跳转
+            const userId = storage.get('userId');
+            api.memoir.generateAsync(userId, conversationId);
+            // 显示简短提示后跳转
+            showToast('对话已保存，可在「我的回忆」中查看');
+            setTimeout(() => {
+                goHome();
+            }, 1500);
         }
     } catch (error) {
         console.error('结束对话失败:', error);
