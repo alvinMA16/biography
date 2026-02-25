@@ -92,9 +92,10 @@ async def realtime_dialog(websocket: WebSocket):
 
             # 累积文本
             if text_type == "asr":
-                current_asr_text = content  # ASR 是完整替换，不是追加
+                current_asr_text = content  # ASR 是渐进式识别，每次是完整结果
+                print(f"[Realtime] ASR 文本: {content}")
             elif text_type == "response":
-                current_response_text = content  # 同样是完整内容
+                current_response_text += content  # AI 回复是增量发送，需要累积
 
         except Exception as e:
             print(f"发送文本失败: {e}")
@@ -111,7 +112,11 @@ async def realtime_dialog(websocket: WebSocket):
             })
 
             # 根据事件保存消息
-            if event == 459:
+            if event == 350:
+                # TTS 开始 - 重置 AI 回复文本，准备累积新内容
+                current_response_text = ""
+
+            elif event == 459:
                 # 用户说完 - 保存用户消息
                 if current_asr_text and conversation_id:
                     save_message(conversation_id, "user", current_asr_text)

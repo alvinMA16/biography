@@ -23,8 +23,9 @@ class UpdateRequest(BaseModel):
 class MemoirResponse(BaseModel):
     id: str
     title: str
-    content: str
+    content: Optional[str]
     order_index: int
+    conversation_id: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -153,3 +154,20 @@ def delete_memoir(memoir_id: str, db: Session = Depends(get_db)):
     if not success:
         raise HTTPException(status_code=404, detail="回忆录不存在")
     return {"message": "删除成功"}
+
+
+class RegenerateRequest(BaseModel):
+    perspective: Optional[str] = "第一人称"
+
+
+@router.post("/{memoir_id}/regenerate", response_model=MemoirResponse)
+def regenerate_memoir(memoir_id: str, request: RegenerateRequest, db: Session = Depends(get_db)):
+    """重新生成回忆录内容"""
+    memoir = memoir_service.regenerate(
+        db=db,
+        memoir_id=memoir_id,
+        perspective=request.perspective
+    )
+    if not memoir:
+        raise HTTPException(status_code=404, detail="回忆录不存在或无法重新生成")
+    return memoir

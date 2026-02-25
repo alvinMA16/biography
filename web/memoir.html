@@ -38,6 +38,15 @@
             <div class="modal-body">
                 <div class="memoir-content" id="memoirContent"></div>
             </div>
+            <div class="modal-footer memoir-actions">
+                <select id="perspectiveSelect" class="perspective-select">
+                    <option value="第一人称">第一人称（我）</option>
+                    <option value="第三人称">第三人称（他/她）</option>
+                </select>
+                <button class="btn btn-secondary" onclick="regenerateMemoir()" id="regenerateBtn">
+                    重新生成
+                </button>
+            </div>
         </div>
     </div>
 

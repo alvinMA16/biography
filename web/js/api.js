@@ -121,6 +121,10 @@ const api = {
             return api.request(`/conversation/user/${userId}/list`);
         },
 
+        async get(conversationId) {
+            return api.request(`/conversation/${conversationId}`);
+        },
+
         async empathy(text) {
             return api.request('/conversation/empathy', {
                 method: 'POST',
@@ -185,6 +189,13 @@ const api = {
         async delete(memoirId) {
             return api.request(`/memoir/${memoirId}`, {
                 method: 'DELETE',
+            });
+        },
+
+        async regenerate(memoirId, perspective = '第一人称') {
+            return api.request(`/memoir/${memoirId}/regenerate`, {
+                method: 'POST',
+                body: JSON.stringify({ perspective }),
             });
         },
     },

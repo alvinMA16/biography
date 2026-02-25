@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.models import Memoir, Conversation, Message
 from app.services.llm_service import llm_service
+from app.services.memoir_agent import memoir_agent
 
 
 class MemoirService:
@@ -12,7 +13,7 @@ class MemoirService:
         ).order_by(Message.created_at).all()
 
         return "\n".join([
-            f"{'老人' if msg.role == 'user' else '晚辈'}: {msg.content}"
+            f"{'用户' if msg.role == 'user' else '记录师'}: {msg.content}"
             for msg in messages
         ])
 
@@ -65,9 +66,9 @@ class MemoirService:
         # 获取对话文本
         conversation_text = self._get_conversation_text(db, memoir.conversation_id)
 
-        # 生成回忆录内容
+        # 使用 Agent 生成回忆录内容
         if conversation_text.strip():
-            content = llm_service.generate_memoir(conversation_text, perspective)
+            content = memoir_agent.generate(conversation_text, perspective)
         else:
             content = "（对话内容为空）"
 
@@ -98,9 +99,9 @@ class MemoirService:
             else:
                 title = "新回忆"
 
-        # 生成回忆录内容
+        # 使用 Agent 生成回忆录内容
         if conversation_text.strip():
-            content = llm_service.generate_memoir(conversation_text, perspective)
+            content = memoir_agent.generate(conversation_text, perspective)
         else:
             content = "（对话内容为空）"
 
@@ -163,6 +164,37 @@ class MemoirService:
         db.delete(memoir)
         db.commit()
         return True
+
+    def regenerate(
+        self,
+        db: Session,
+        memoir_id: str,
+        perspective: str = "第一人称"
+    ) -> Optional[Memoir]:
+        """重新生成回忆录内容"""
+        memoir = db.query(Memoir).filter(Memoir.id == memoir_id).first()
+        if not memoir:
+            return None
+
+        # 需要有关联的对话才能重新生成
+        if not memoir.conversation_id:
+            return None
+
+        # 获取对话文本
+        conversation_text = self._get_conversation_text(db, memoir.conversation_id)
+
+        if not conversation_text.strip():
+            return None
+
+        # 使用 Agent 重新生成内容
+        content = memoir_agent.generate(conversation_text, perspective)
+
+        # 更新回忆录
+        memoir.content = content
+        db.commit()
+        db.refresh(memoir)
+
+        return memoir
 
 
 memoir_service = MemoirService()

@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>回忆录详情</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .detail-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .detail-header {
+            display: flex;
+            align-items: center;
+            padding: 20px 32px;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .detail-header .btn-back {
+            background: none;
+            border: none;
+            font-size: 14px;
+            color: var(--color-text-light);
+            cursor: pointer;
+            font-family: var(--font-sans);
+        }
+
+        .detail-header .btn-back:hover {
+            color: var(--color-accent);
+        }
+
+        .detail-header h1 {
+            flex: 1;
+            text-align: center;
+            font-size: 20px;
+            font-weight: 400;
+            margin: 0 40px;
+        }
+
+        .detail-content {
+            flex: 1;
+            padding: 32px;
+            overflow-y: auto;
+        }
+
+        .memoir-text {
+            font-size: 17px;
+            line-height: 2;
+            white-space: pre-wrap;
+            max-width: 100%;
+        }
+
+        /* 底部工具栏 */
+        .detail-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px 32px;
+            background: var(--color-bg);
+            border-top: 1px solid var(--color-border);
+        }
+
+        .toolbar-inner {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px;
+            background: var(--color-bg-dark);
+            border-radius: 8px;
+        }
+
+        .toolbar-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 16px;
+            background: none;
+            border: none;
+            font-size: 14px;
+            font-family: var(--font-sans);
+            color: var(--color-text-light);
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .toolbar-btn:hover {
+            background: var(--color-bg);
+            color: var(--color-text);
+        }
+
+        .toolbar-btn:active {
+            transform: scale(0.98);
+        }
+
+        .toolbar-btn svg {
+            width: 18px;
+            height: 18px;
+            stroke-width: 1.5;
+        }
+
+        .toolbar-divider {
+            width: 1px;
+            height: 24px;
+            background: var(--color-border);
+            margin: 0 4px;
+        }
+
+        /* 人称选择器 */
+        .perspective-selector {
+            position: relative;
+        }
+
+        .perspective-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 16px;
+            background: none;
+            border: none;
+            font-size: 14px;
+            font-family: var(--font-sans);
+            color: var(--color-text-light);
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .perspective-btn:hover {
+            background: var(--color-bg);
+            color: var(--color-text);
+        }
+
+        .perspective-btn .chevron {
+            width: 14px;
+            height: 14px;
+            transition: transform 0.2s;
+        }
+
+        .perspective-selector.open .perspective-btn .chevron {
+            transform: rotate(180deg);
+        }
+
+        .perspective-dropdown {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            min-width: 140px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s;
+        }
+
+        .perspective-selector.open .perspective-dropdown {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .perspective-option {
+            display: block;
+            width: 100%;
+            padding: 12px 16px;
+            background: none;
+            border: none;
+            font-size: 14px;
+            font-family: var(--font-sans);
+            color: var(--color-text);
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .perspective-option:first-child {
+            border-radius: 8px 8px 0 0;
+        }
+
+        .perspective-option:last-child {
+            border-radius: 0 0 8px 8px;
+        }
+
+        .perspective-option:hover {
+            background: var(--color-bg-dark);
+        }
+
+        .perspective-option.active {
+            color: var(--color-accent);
+        }
+
+        /* 重新生成按钮特殊样式 */
+        .toolbar-btn.btn-regenerate {
+            color: var(--color-accent);
+        }
+
+        .toolbar-btn.btn-regenerate:hover {
+            background: rgba(139, 69, 19, 0.08);
+        }
+
+        .toolbar-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .toolbar-btn:disabled:hover {
+            background: none;
+            color: var(--color-text-light);
+        }
+
+        /* 加载动画 */
+        .toolbar-btn .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--color-border);
+            border-top-color: var(--color-accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 对话记录面板 */
+        .transcript-panel {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100vh;
+            background: var(--color-bg);
+            box-shadow: -4px 0 24px rgba(0,0,0,0.1);
+            transition: right 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+        }
+
+        .transcript-panel.open {
+            right: 0;
+        }
+
+        .transcript-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .transcript-header h3 {
+            font-size: 16px;
+            font-weight: 400;
+        }
+
+        .transcript-content {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .transcript-message {
+            margin-bottom: 20px;
+        }
+
+        .transcript-message .role {
+            font-size: 12px;
+            color: var(--color-text-light);
+            margin-bottom: 4px;
+            font-family: var(--font-sans);
+        }
+
+        .transcript-message .content {
+            font-size: 15px;
+            line-height: 1.7;
+            color: var(--color-text);
+        }
+
+        .transcript-message.user .role {
+            color: var(--color-accent);
+        }
+
+        .transcript-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.3);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+            z-index: 999;
+        }
+
+        .transcript-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .no-transcript {
+            color: var(--color-text-light);
+            text-align: center;
+            padding: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container detail-page">
+        <header class="detail-header">
+            <button class="btn-back" onclick="goBack()">返回</button>
+            <h1 id="memoirTitle">加载中...</h1>
+            <div style="width: 40px;"></div>
+        </header>
+
+        <main class="detail-content">
+            <div class="memoir-text" id="memoirContent">加载中...</div>
+        </main>
+
+        <footer class="detail-toolbar">
+            <div class="toolbar-inner">
+                <button class="toolbar-btn" onclick="toggleTranscript()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span>对话记录</span>
+                </button>
+
+                <div class="toolbar-divider"></div>
+
+                <div class="perspective-selector" id="perspectiveSelector">
+                    <button class="perspective-btn" onclick="togglePerspective()">
+                        <span id="perspectiveLabel">第一人称</span>
+                        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="perspective-dropdown">
+                        <button class="perspective-option active" data-value="第一人称" onclick="selectPerspective('第一人称')">第一人称（我）</button>
+                        <button class="perspective-option" data-value="第三人称" onclick="selectPerspective('第三人称')">第三人称（他/她）</button>
+                    </div>
+                </div>
+
+                <button class="toolbar-btn btn-regenerate" onclick="regenerateMemoir()" id="regenerateBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M23 4v6h-6"></path>
+                        <path d="M1 20v-6h6"></path>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                    </svg>
+                    <span>重新生成</span>
+                </button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 对话记录侧边栏 -->
+    <div class="transcript-overlay" id="transcriptOverlay" onclick="toggleTranscript()"></div>
+    <div class="transcript-panel" id="transcriptPanel">
+        <div class="transcript-header">
+            <h3>对话记录</h3>
+            <button class="btn-close" onclick="toggleTranscript()">&times;</button>
+        </div>
+        <div class="transcript-content" id="transcriptContent">
+            <div class="no-transcript">加载中...</div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/memoir-detail.js"></script>
+</body>
+</html>

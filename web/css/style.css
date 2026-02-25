@@ -858,3 +858,40 @@ body {
     transform: none;
     box-shadow: none;
 }
+
+/* 回忆录详情底部操作栏 */
+.memoir-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 32px;
+    border-top: 1px solid var(--color-border);
+    background: var(--color-bg-dark);
+}
+
+.perspective-select {
+    padding: 8px 12px;
+    font-size: 14px;
+    font-family: var(--font-sans);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    cursor: pointer;
+}
+
+.perspective-select:focus {
+    outline: none;
+    border-color: var(--color-accent);
+}
+
+.memoir-actions .btn {
+    padding: 8px 20px;
+    font-size: 14px;
+}
+
+.memoir-actions .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}

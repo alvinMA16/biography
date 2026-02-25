@@ -112,18 +112,9 @@ function showEmptyState() {
     document.getElementById('emptyState').style.display = 'block';
 }
 
-// 查看回忆录详情
-async function viewMemoir(memoirId) {
-    try {
-        const memoir = await api.memoir.get(memoirId);
-
-        document.getElementById('memoirTitle').textContent = memoir.title;
-        document.getElementById('memoirContent').textContent = memoir.content;
-        document.getElementById('memoirModal').style.display = 'flex';
-    } catch (error) {
-        console.error('加载回忆录失败:', error);
-        alert('加载失败: ' + error.message);
-    }
+// 查看回忆录详情 - 跳转到详情页
+function viewMemoir(memoirId) {
+    window.location.href = `memoir-detail.html?id=${memoirId}`;
 }
 
 // 关闭弹窗

@@ -313,30 +313,36 @@ class DoubaoRealtimeClient:
 
                     # 提取文本内容
                     if isinstance(payload, dict):
-                        # 从 results 数组中提取文本（事件 451 等）
+                        # 从 results 数组中提取文本
                         results = payload.get('results', [])
                         if results and isinstance(results, list) and len(results) > 0:
                             result = results[0]
                             if isinstance(result, dict):
-                                # AI 回复文本
-                                response_text = result.get('text')
-                                if response_text and self.on_text:
-                                    self.on_text('response', response_text)
+                                text = result.get('text')
+                                is_interim = result.get('is_interim', True)
 
-                                # ASR 文本
-                                asr_text = result.get('asr_text')
-                                if asr_text and self.on_text:
-                                    self.on_text('asr', asr_text)
+                                # Event 451 是 ASR 事件（用户说的话）
+                                # is_interim=False 表示最终结果
+                                if event == 451 and text:
+                                    if not is_interim:
+                                        # 最终 ASR 结果
+                                        print(f"[Doubao] ASR 最终结果: {text[:50]}...")
+                                        if self.on_text:
+                                            self.on_text('asr', text)
+                                    # 中间结果不处理
 
-                        # 兼容其他格式
+                                # 其他事件的 text 是 AI 回复
+                                elif event != 451 and text:
+                                    if self.on_text:
+                                        self.on_text('response', text)
+
+                        # 兼容其他格式（没有 results 数组的情况）
                         if not results:
-                            response_text = payload.get('text') or payload.get('content')
-                            if response_text and self.on_text:
-                                self.on_text('response', response_text)
-
-                            asr_text = payload.get('asr_text')
-                            if asr_text and self.on_text:
-                                self.on_text('asr', asr_text)
+                            text = payload.get('text') or payload.get('content')
+                            if text and self.on_text:
+                                # 非 451 事件的文本是 AI 回复
+                                if event != 451:
+                                    self.on_text('response', text)
 
                     # 会话结束事件
                     if event in (152, 153):
