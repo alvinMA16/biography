@@ -15,17 +15,15 @@
         </header>
 
 
-        <main class="chat-main">
-            <!-- AI 问题区域 -->
-            <div class="ai-section" id="aiSection">
-                <div class="ai-question">
-                    <div class="content" id="aiQuestion"></div>
-                </div>
+        <main class="chat-main-stable">
+            <!-- AI 说话内容区域 -->
+            <div class="ai-content-area">
+                <div class="ai-text" id="aiText">正在连接...</div>
             </div>
 
-            <!-- 语音输入区域 -->
-            <div class="voice-section" id="voiceSection" style="display: none;">
-                <div class="voice-visualizer">
+            <!-- 用户语音输入区域（始终显示） -->
+            <div class="user-voice-area">
+                <div class="voice-visualizer" id="voiceVisualizer">
                     <div class="voice-bars">
                         <span class="bar"></span>
                         <span class="bar"></span>
@@ -34,35 +32,9 @@
                         <span class="bar"></span>
                     </div>
                 </div>
-                <p class="voice-hint" id="voiceHint">正在聆听...</p>
-            </div>
-
-            <!-- 加载状态 -->
-            <div class="loading-state" id="loadingState" style="display: none;">
-                <p id="loadingText">正在思考<span class="loading-dots"></span></p>
-            </div>
-
-            <!-- 底部文字输入（备用） -->
-            <div class="text-input-fallback" id="textInputFallback">
-                <button class="btn-text-mode" onclick="switchToTextMode()">切换到文字输入</button>
+                <p class="voice-status" id="voiceStatus">等待连接</p>
             </div>
         </main>
-    </div>
-
-    <!-- 文字输入弹窗 -->
-    <div class="modal" id="textModal" style="display: none;">
-        <div class="modal-content text-modal">
-            <div class="modal-header">
-                <h2>文字输入</h2>
-                <button class="btn-close" onclick="closeTextModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <textarea id="messageInput" placeholder="请输入您想说的话..."></textarea>
-                <div class="modal-footer">
-                    <button class="btn btn-primary" onclick="sendTextMessage()">发送</button>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script src="js/api.js"></script>

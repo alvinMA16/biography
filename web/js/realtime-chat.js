@@ -102,7 +102,8 @@ function handleServerMessage(message) {
         case 'status':
             if (message.status === 'connected') {
                 isConnected = true;
-                showStatus('已连接，等待开场白...');
+                updateAIText('已连接，等待开场白...');
+                updateVoiceStatus('请稍候');
             } else if (message.status === 'error') {
                 showError(message.message);
             }
@@ -120,7 +121,7 @@ function handleServerMessage(message) {
                 // 用户说的话（ASR结果）
                 console.log('用户说:', message.content);
             } else if (message.text_type === 'response') {
-                // AI 回复
+                // AI 回复文字，更新显示
                 updateAIText(message.content);
             }
             break;
@@ -136,33 +137,38 @@ function handleEvent(event, payload) {
 
     switch (event) {
         case 350:
-            // TTS 开始
-            showStatus('AI 正在回复...');
+            // TTS 开始 - AI 开始说话
+            updateVoiceStatus('记录师正在说话');
+            setVoiceActive(false);
             break;
 
         case 359:
-            // TTS 结束，可以开始录音了
-            showStatus('请开始说话');
+            // TTS 结束 - 可以开始录音了
+            updateVoiceStatus('请开始说话');
             setTimeout(() => {
                 startRecording();
             }, 500);
             break;
 
         case 450:
-            // 用户开始说话，清空音频队列
+            // 用户开始说话 - 清空音频队列，音波动起来
             clearAudioQueue();
-            showStatus('正在聆听...');
+            updateVoiceStatus('正在聆听...');
+            setVoiceActive(true);
             break;
 
         case 459:
-            // 用户说完，AI 开始处理
-            showStatus('正在思考...');
+            // 用户说完 - AI 开始处理
+            updateVoiceStatus('正在思考...');
+            setVoiceActive(false);
             break;
 
         case 152:
         case 153:
             // 会话结束
-            showStatus('对话已结束');
+            updateAIText('对话已结束');
+            updateVoiceStatus('已结束');
+            setVoiceActive(false);
             stopRecording();
             break;
     }
@@ -203,12 +209,12 @@ async function startRecording() {
         scriptProcessor.connect(audioContext.destination);
 
         isRecording = true;
-        showVoiceInput();
-        updateVoiceHint('正在聆听...');
+        updateVoiceStatus('请开始说话');
 
     } catch (error) {
         console.error('无法访问麦克风:', error);
-        showError('无法访问麦克风，请检查权限');
+        updateAIText('无法访问麦克风，请检查权限');
+        updateVoiceStatus('麦克风错误');
     }
 }
 
@@ -337,43 +343,37 @@ function applyFade(samples) {
 
 // ========== 界面控制 ==========
 
+// 更新 AI 文字内容
+function updateAIText(text) {
+    document.getElementById('aiText').textContent = text;
+}
+
+// 更新用户语音状态
+function updateVoiceStatus(text) {
+    document.getElementById('voiceStatus').textContent = text;
+}
+
+// 设置音波动画状态
+function setVoiceActive(active) {
+    const visualizer = document.getElementById('voiceVisualizer');
+    if (active) {
+        visualizer.classList.add('active');
+    } else {
+        visualizer.classList.remove('active');
+    }
+}
+
+// 简化的状态更新函数
 function showLoading(text) {
-    document.getElementById('aiSection').style.display = 'none';
-    document.getElementById('voiceSection').style.display = 'none';
-    document.getElementById('loadingState').style.display = 'block';
-    document.getElementById('loadingText').innerHTML = text + '<span class="loading-dots"></span>';
-    document.getElementById('textInputFallback').style.display = 'none';
-}
-
-function showStatus(text) {
-    document.getElementById('aiSection').style.display = 'flex';
-    document.getElementById('voiceSection').style.display = 'none';
-    document.getElementById('loadingState').style.display = 'none';
-    document.getElementById('aiQuestion').textContent = text;
-    document.getElementById('textInputFallback').style.display = 'none';
-}
-
-function showVoiceInput() {
-    document.getElementById('aiSection').style.display = 'flex';
-    document.getElementById('voiceSection').style.display = 'flex';
-    document.getElementById('loadingState').style.display = 'none';
-    document.getElementById('textInputFallback').style.display = 'none';
+    updateAIText(text + '...');
+    updateVoiceStatus('请稍候');
+    setVoiceActive(false);
 }
 
 function showError(text) {
-    document.getElementById('aiSection').style.display = 'flex';
-    document.getElementById('voiceSection').style.display = 'none';
-    document.getElementById('loadingState').style.display = 'none';
-    document.getElementById('aiQuestion').textContent = '错误: ' + text;
-    document.getElementById('textInputFallback').style.display = 'block';
-}
-
-function updateAIText(text) {
-    document.getElementById('aiQuestion').textContent = text;
-}
-
-function updateVoiceHint(text) {
-    document.getElementById('voiceHint').textContent = text;
+    updateAIText('错误: ' + text);
+    updateVoiceStatus('连接失败');
+    setVoiceActive(false);
 }
 
 // ========== 工具函数 ==========
@@ -420,11 +420,6 @@ function base64ToArrayBuffer(base64) {
 }
 
 // ========== 页面控制 ==========
-
-function switchToTextMode() {
-    // 实时对话模式暂不支持文字输入
-    alert('实时对话模式暂不支持文字输入');
-}
 
 async function endChat() {
     if (!confirm('确定要结束这次对话吗？')) {
