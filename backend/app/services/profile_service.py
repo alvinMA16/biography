@@ -47,26 +47,8 @@ class ProfileService:
         ])
 
         # 使用 LLM 提取信息
-        prompt = f"""请从以下对话中提取用户的基本信息。
-
-## 对话内容
-{conversation_text}
-
-## 需要提取的信息
-1. nickname - 用户希望被称呼的名字（如：张爷爷、李阿姨、老王等）
-2. birth_year - 出生年份（4位数字，如：1950）
-3. hometown - 家乡或出生地（如：北京、山东济南等）
-
-## 输出格式（JSON）
-{{
-    "nickname": "提取到的称呼，如果没有提到则为null",
-    "birth_year": 提取到的年份数字，如果没有提到则为null,
-    "hometown": "提取到的地点，如果没有提到则为null",
-    "has_enough_info": true或false（是否收集到了至少称呼信息）
-}}
-
-只输出 JSON，不要其他内容。如果用户说了年龄，请根据当前年份（2024年）计算出出生年份。
-"""
+        from app.prompts import profile_extraction
+        prompt = profile_extraction.build(conversation_text)
 
         try:
             response = self.client.chat.completions.create(
@@ -108,21 +90,41 @@ class ProfileService:
                 user.hometown = result["hometown"]
                 updated = True
 
+            if result.get("main_city"):
+                user.main_city = result["main_city"]
+                updated = True
+
+            # 无论是否完成，只要有更新就保存
+            if updated:
+                db.commit()
+                print(f"[Profile] 已保存用户信息: nickname={user.nickname}, birth_year={user.birth_year}, hometown={user.hometown}, main_city={user.main_city}")
+
+            # 如果有出生年份且时代记忆未生成，触发异步生成
+            should_generate_era = (
+                user.birth_year and
+                user.era_memories_status in ('none', 'pending', 'failed')
+            )
+
             # 如果收集到了足够信息，标记为完成
             if result.get("has_enough_info") or user.nickname:
                 user.profile_completed = True
-                print(f"[Profile] 用户信息收集完成: nickname={user.nickname}, birth_year={user.birth_year}, hometown={user.hometown}")
-
                 db.commit()
+                print(f"[Profile] 用户信息收集完成")
 
                 # 生成初始开场白
                 greeting_service.generate_initial_greetings(db, user)
 
+                # 异步生成时代记忆
+                if should_generate_era:
+                    self._generate_era_memories_async(user.id, user.birth_year, user.hometown, user.main_city)
+
                 return True
             else:
-                print(f"[Profile] 信息不足，未标记为完成")
-                if updated:
-                    db.commit()
+                print(f"[Profile] 信息不足，未标记为完成，但已保存部分信息")
+                # 即使未完成，只要有 birth_year 也生成时代记忆
+                if should_generate_era:
+                    print(f"[Profile] 有出生年份，触发时代记忆生成")
+                    self._generate_era_memories_async(user.id, user.birth_year, user.hometown, user.main_city)
                 return False
 
         except Exception as e:
@@ -148,8 +150,84 @@ class ProfileService:
             "nickname": user.nickname,
             "birth_year": user.birth_year,
             "hometown": user.hometown,
-            "profile_completed": user.profile_completed
+            "main_city": user.main_city,
+            "profile_completed": user.profile_completed,
+            "era_memories": user.era_memories
         }
+
+    def _generate_era_memories_async(self, user_id: str, birth_year: int, hometown: str = None, main_city: str = None):
+        """异步生成时代记忆"""
+        import threading
+
+        def _generate():
+            from app.database import SessionLocal
+            from app.services.llm_service import llm_service
+
+            db = SessionLocal()
+            try:
+                # 标记为生成中
+                user = db.query(User).filter(User.id == user_id).first()
+                if user:
+                    user.era_memories_status = 'generating'
+                    db.commit()
+
+                print(f"[Profile] 开始为用户 {user_id} 生成时代记忆...")
+                era_memories = llm_service.generate_era_memories(birth_year, hometown, main_city)
+
+                user = db.query(User).filter(User.id == user_id).first()
+                if user:
+                    user.era_memories = era_memories
+                    user.era_memories_status = 'completed'
+                    db.commit()
+                    print(f"[Profile] 时代记忆生成完成，已保存")
+                else:
+                    print(f"[Profile] 用户不存在: {user_id}")
+            except Exception as e:
+                print(f"[Profile] 生成时代记忆失败: {e}")
+                import traceback
+                traceback.print_exc()
+                # 标记为失败
+                try:
+                    user = db.query(User).filter(User.id == user_id).first()
+                    if user:
+                        user.era_memories_status = 'failed'
+                        db.commit()
+                except:
+                    pass
+            finally:
+                db.close()
+
+        thread = threading.Thread(target=_generate)
+        thread.start()
+
+    def regenerate_era_memories(self, db: Session, user_id: str) -> Optional[str]:
+        """重新生成时代记忆（同步）"""
+        from app.services.llm_service import llm_service
+
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return None
+
+        if not user.birth_year:
+            return None
+
+        # 标记为生成中
+        user.era_memories_status = 'generating'
+        db.commit()
+
+        try:
+            print(f"[Profile] 为用户 {user_id} 重新生成时代记忆...")
+            era_memories = llm_service.generate_era_memories(user.birth_year, user.hometown, user.main_city)
+            user.era_memories = era_memories
+            user.era_memories_status = 'completed'
+            db.commit()
+            print(f"[Profile] 时代记忆重新生成完成")
+            return era_memories
+        except Exception as e:
+            print(f"[Profile] 重新生成时代记忆失败: {e}")
+            user.era_memories_status = 'failed'
+            db.commit()
+            raise
 
 
 profile_service = ProfileService()

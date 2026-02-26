@@ -20,6 +20,7 @@
             <div class="dropdown" id="userDropdown">
                 <button class="dropdown-item" onclick="openRecorderSelect()">选择记录师</button>
                 <button class="dropdown-item" onclick="viewMemoirs()">我的回忆</button>
+                <button class="dropdown-item" id="eraMemoriesBtn" style="display: none;" onclick="viewEraMemories()">时代记忆</button>
                 <div class="dropdown-divider"></div>
                 <button class="dropdown-item" onclick="logout()">退出登录</button>
                 <button class="dropdown-item" style="color: #c0392b;" onclick="deleteAccount()">注销账号</button>
@@ -45,6 +46,30 @@
                 <button class="btn btn-secondary" onclick="viewMemoirs()">旧的回忆</button>
             </div>
         </main>
+    </div>
+
+    <!-- 时代记忆弹窗 -->
+    <div class="modal" id="eraMemoriesModal" style="display: none;">
+        <div class="modal-content era-memories-modal">
+            <div class="modal-header">
+                <h2>时代记忆</h2>
+                <span class="era-status-badge" id="eraMemoriesStatus">-</span>
+                <button class="btn-close" onclick="closeEraMemoriesModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="era-memories-info" id="eraMemoriesInfo">
+                    <p>出生年份：<span id="eraInfoBirthYear">-</span></p>
+                    <p>家乡：<span id="eraInfoHometown">-</span></p>
+                    <p>主要城市：<span id="eraInfoMainCity">-</span></p>
+                </div>
+                <div class="era-memories-content" id="eraMemoriesContent">
+                    <p class="loading-text">加载中...</p>
+                </div>
+                <div class="era-memories-actions">
+                    <button class="btn btn-secondary" id="regenerateBtn" onclick="regenerateEraMemories()">重新生成</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- 选择记录师弹窗 -->
@@ -98,6 +123,12 @@
         document.getElementById('recorderModal').addEventListener('click', function(e) {
             if (e.target === this) {
                 closeRecorderModal();
+            }
+        });
+
+        document.getElementById('eraMemoriesModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEraMemoriesModal();
             }
         });
     </script>

@@ -18,7 +18,11 @@ class User(Base):
     # 用户基础信息（通过对话收集）
     birth_year = Column(Integer, nullable=True)  # 出生年份
     hometown = Column(String(100), nullable=True)  # 家乡
+    main_city = Column(String(100), nullable=True)  # 生活时间最长的城市
     profile_completed = Column(Boolean, default=False)  # 是否完成基础信息收集
+    era_memories = Column(Text, nullable=True)  # 时代记忆（LLM 生成）
+    # 时代记忆状态: none(未收集基础信息) / pending(等待生成) / generating(生成中) / completed(已完成) / failed(失败)
+    era_memories_status = Column(String(20), default='none')
 
     # 开场白候选池
     greeting_candidates = relationship("GreetingCandidate", back_populates="user", cascade="all, delete-orphan")

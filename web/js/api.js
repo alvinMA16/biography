@@ -61,6 +61,16 @@ const api = {
                 method: 'DELETE',
             });
         },
+
+        async getEraMemories(userId) {
+            return api.request(`/user/${userId}/era-memories`);
+        },
+
+        async regenerateEraMemories(userId) {
+            return api.request(`/user/${userId}/era-memories/regenerate`, {
+                method: 'POST',
+            });
+        },
     },
 
     // 对话相关
@@ -139,13 +149,6 @@ const api = {
 
         async get(conversationId) {
             return api.request(`/conversation/${conversationId}`);
-        },
-
-        async empathy(text) {
-            return api.request('/conversation/empathy', {
-                method: 'POST',
-                body: JSON.stringify({ text }),
-            });
         },
     },
 

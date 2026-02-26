@@ -25,6 +25,7 @@ class UserResponse(BaseModel):
     profile_completed: bool = False
     birth_year: Optional[int] = None
     hometown: Optional[str] = None
+    main_city: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -34,7 +35,16 @@ class UserProfileResponse(BaseModel):
     nickname: Optional[str]
     birth_year: Optional[int]
     hometown: Optional[str]
+    main_city: Optional[str]
     profile_completed: bool
+
+
+class EraMemoriesResponse(BaseModel):
+    era_memories: Optional[str]
+    era_memories_status: str = 'none'  # none / pending / generating / completed / failed
+    birth_year: Optional[int]
+    hometown: Optional[str]
+    main_city: Optional[str]
 
 
 @router.post("/create", response_model=UserResponse)
@@ -80,7 +90,64 @@ def get_user_profile(user_id: str, db: Session = Depends(get_db)):
         nickname=user.nickname,
         birth_year=user.birth_year,
         hometown=user.hometown,
+        main_city=user.main_city,
         profile_completed=user.profile_completed or False
+    )
+
+
+@router.get("/{user_id}/era-memories", response_model=EraMemoriesResponse)
+def get_era_memories(user_id: str, db: Session = Depends(get_db)):
+    """获取用户的时代记忆"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    # 智能判断状态（兼容旧数据）
+    status = user.era_memories_status or 'none'
+    if status == 'none':
+        if user.era_memories:
+            # 有内容但状态是 none，说明是旧数据，修正为 completed
+            status = 'completed'
+            user.era_memories_status = 'completed'
+            db.commit()
+        elif user.birth_year:
+            # 有出生年份但没生成，状态应该是 pending
+            status = 'pending'
+            user.era_memories_status = 'pending'
+            db.commit()
+
+    return EraMemoriesResponse(
+        era_memories=user.era_memories,
+        era_memories_status=status,
+        birth_year=user.birth_year,
+        hometown=user.hometown,
+        main_city=user.main_city
+    )
+
+
+@router.post("/{user_id}/era-memories/regenerate", response_model=EraMemoriesResponse)
+def regenerate_era_memories(user_id: str, db: Session = Depends(get_db)):
+    """重新生成时代记忆"""
+    from app.services.profile_service import profile_service
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    if not user.birth_year:
+        raise HTTPException(status_code=400, detail="缺少出生年份信息")
+
+    era_memories = profile_service.regenerate_era_memories(db, user_id)
+
+    # 重新获取用户以获取最新状态
+    db.refresh(user)
+
+    return EraMemoriesResponse(
+        era_memories=era_memories,
+        era_memories_status=user.era_memories_status or 'completed',
+        birth_year=user.birth_year,
+        hometown=user.hometown,
+        main_city=user.main_city
     )
 
 

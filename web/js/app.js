@@ -1,7 +1,17 @@
 // 首页逻辑
 
+// Debug 模式检测
+const DEBUG_MODE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
 // 初始化应用
 async function initApp() {
+    // 如果是 debug 模式，显示时代记忆入口
+    if (DEBUG_MODE) {
+        const eraMemoriesBtn = document.getElementById('eraMemoriesBtn');
+        if (eraMemoriesBtn) {
+            eraMemoriesBtn.style.display = 'block';
+        }
+    }
     // 确保弹窗初始状态是关闭的
     closeRecorderModal();
 
@@ -323,4 +333,151 @@ function stopPreviewAudio() {
     }
     previewAudioQueue = [];
     previewNextPlayTime = 0;
+}
+
+// ========== 时代记忆 ==========
+
+async function viewEraMemories() {
+    const dropdown = document.getElementById('userDropdown');
+    dropdown.classList.remove('show');
+
+    const modal = document.getElementById('eraMemoriesModal');
+    modal.style.display = 'flex';
+
+    // 加载时代记忆
+    await loadEraMemories();
+}
+
+function closeEraMemoriesModal() {
+    stopEraMemoriesPolling();
+    document.getElementById('eraMemoriesModal').style.display = 'none';
+}
+
+// 轮询检查时代记忆状态
+let eraMemoriesPollingTimer = null;
+
+async function loadEraMemories() {
+    const userId = storage.get('userId');
+    if (!userId) {
+        return;
+    }
+
+    const contentEl = document.getElementById('eraMemoriesContent');
+    const statusEl = document.getElementById('eraMemoriesStatus');
+    const birthYearEl = document.getElementById('eraInfoBirthYear');
+    const hometownEl = document.getElementById('eraInfoHometown');
+    const mainCityEl = document.getElementById('eraInfoMainCity');
+    const regenerateBtn = document.getElementById('regenerateBtn');
+
+    contentEl.innerHTML = '<p class="loading-text">加载中...</p>';
+
+    try {
+        const data = await api.user.getEraMemories(userId);
+
+        // 更新用户信息
+        birthYearEl.textContent = data.birth_year || '-';
+        hometownEl.textContent = data.hometown || '-';
+        mainCityEl.textContent = data.main_city || '-';
+
+        // 根据状态显示不同内容
+        const status = data.era_memories_status || 'none';
+        updateEraMemoriesStatus(status);
+
+        if (status === 'completed' && data.era_memories) {
+            contentEl.textContent = data.era_memories;
+            regenerateBtn.disabled = false;
+            regenerateBtn.textContent = '重新生成';
+            stopEraMemoriesPolling();
+        } else if (status === 'generating') {
+            contentEl.innerHTML = '<p class="loading-text">正在生成中，请稍候...</p>';
+            regenerateBtn.disabled = true;
+            regenerateBtn.textContent = '生成中...';
+            // 启动轮询
+            startEraMemoriesPolling();
+        } else if (status === 'pending') {
+            contentEl.innerHTML = '<p class="empty-text">已收集基础信息，等待生成时代记忆</p>';
+            regenerateBtn.disabled = false;
+            regenerateBtn.textContent = '开始生成';
+            stopEraMemoriesPolling();
+        } else if (status === 'failed') {
+            contentEl.innerHTML = '<p class="empty-text">生成失败，请点击下方按钮重试</p>';
+            regenerateBtn.disabled = false;
+            regenerateBtn.textContent = '重新生成';
+            stopEraMemoriesPolling();
+        } else {
+            // none - 未收集基础信息
+            contentEl.innerHTML = '<p class="empty-text">请先完成信息收集（出生年份）后再查看</p>';
+            regenerateBtn.disabled = true;
+            regenerateBtn.textContent = '重新生成';
+            stopEraMemoriesPolling();
+        }
+    } catch (error) {
+        console.error('加载时代记忆失败:', error);
+        contentEl.innerHTML = '<p class="empty-text">加载失败，请稍后重试</p>';
+    }
+}
+
+function updateEraMemoriesStatus(status) {
+    const statusEl = document.getElementById('eraMemoriesStatus');
+    const statusMap = {
+        'none': { text: '未收集', class: 'status-none' },
+        'pending': { text: '待生成', class: 'status-pending' },
+        'generating': { text: '生成中', class: 'status-generating' },
+        'completed': { text: '已完成', class: 'status-completed' },
+        'failed': { text: '生成失败', class: 'status-failed' }
+    };
+    const info = statusMap[status] || statusMap['none'];
+    statusEl.textContent = info.text;
+    statusEl.className = 'era-status-badge ' + info.class;
+}
+
+function startEraMemoriesPolling() {
+    if (eraMemoriesPollingTimer) return;
+    eraMemoriesPollingTimer = setInterval(() => {
+        loadEraMemories();
+    }, 3000);
+}
+
+function stopEraMemoriesPolling() {
+    if (eraMemoriesPollingTimer) {
+        clearInterval(eraMemoriesPollingTimer);
+        eraMemoriesPollingTimer = null;
+    }
+}
+
+async function regenerateEraMemories() {
+    const userId = storage.get('userId');
+    if (!userId) {
+        return;
+    }
+
+    const contentEl = document.getElementById('eraMemoriesContent');
+    const regenerateBtn = document.getElementById('regenerateBtn');
+
+    contentEl.innerHTML = '<p class="loading-text">正在生成...</p>';
+    updateEraMemoriesStatus('generating');
+    regenerateBtn.disabled = true;
+    regenerateBtn.textContent = '生成中...';
+
+    try {
+        const data = await api.user.regenerateEraMemories(userId);
+
+        if (data.era_memories) {
+            contentEl.textContent = data.era_memories;
+            updateEraMemoriesStatus('completed');
+            regenerateBtn.disabled = false;
+            regenerateBtn.textContent = '重新生成';
+        } else {
+            contentEl.innerHTML = '<p class="empty-text">生成失败，请确保已填写出生年份</p>';
+            updateEraMemoriesStatus('failed');
+            regenerateBtn.disabled = false;
+            regenerateBtn.textContent = '重新生成';
+        }
+    } catch (error) {
+        console.error('重新生成时代记忆失败:', error);
+        contentEl.innerHTML = '<p class="empty-text">生成失败: ' + error.message + '</p>';
+        updateEraMemoriesStatus('failed');
+        regenerateBtn.disabled = false;
+        regenerateBtn.textContent = '重新生成';
+    }
 }

@@ -136,15 +136,24 @@ async def realtime_dialog(websocket: WebSocket):
             print(f"发送事件失败: {e}")
 
     try:
-        # 检查用户是否需要收集信息
+        # 检查用户是否需要收集信息，并获取用户信息
         actual_mode = mode
-        if user_id and mode != "profile_collection":
+        era_memories = None
+        user_nickname = None
+
+        if user_id:
             db = SessionLocal()
             try:
                 user = db.query(User).filter(User.id == user_id).first()
-                if user and not user.profile_completed:
-                    actual_mode = "profile_collection"
-                    print(f"[Realtime] 用户未完成信息收集，切换到 profile_collection 模式")
+                if user:
+                    if not user.profile_completed:
+                        actual_mode = "profile_collection"
+                        print(f"[Realtime] 用户未完成信息收集，切换到 profile_collection 模式")
+                    else:
+                        # 获取用户信息用于正常对话
+                        era_memories = user.era_memories
+                        user_nickname = user.nickname
+                        print(f"[Realtime] 用户信息: nickname={user_nickname}, 时代记忆={'有' if era_memories else '无'}")
             finally:
                 db.close()
 
@@ -153,6 +162,8 @@ async def realtime_dialog(websocket: WebSocket):
             speaker=speaker,  # 传入音色参数
             recorder_name=recorder_name,  # 传入记录师名字
             mode=actual_mode,  # 传入模式
+            era_memories=era_memories,  # 传入时代记忆
+            user_nickname=user_nickname,  # 传入用户称呼
             on_audio=lambda data: asyncio.create_task(on_audio(data)),
             on_text=lambda t, c: asyncio.create_task(on_text(t, c)),
             on_event=lambda e, p: asyncio.create_task(on_event(e, p)),
