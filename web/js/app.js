@@ -13,24 +13,27 @@ async function initApp() {
         return;
     }
 
-    // 检查是否刚完成信息收集（从对话页面返回）
-    // 这是为了处理后台异步更新 profile_completed 的竞态条件
-    if (storage.get('profileJustCompleted')) {
-        storage.remove('profileJustCompleted');
-        console.log('信息收集刚完成，跳过引导流程');
-        // 不需要再检查 profile_completed，直接显示主页
-        return;
-    }
-
     // 检查用户是否存在且完成了信息收集
     try {
         const profile = await api.user.getProfile(userId);
-        if (!profile.profile_completed) {
-            // 未完成信息收集，继续引导流程
-            startOnboarding();
+
+        if (profile.profile_completed) {
+            // 用户已完成信息收集，清除临时标记，正常显示主页
+            storage.remove('profileJustCompleted');
             return;
         }
-        // 用户已完成信息收集，正常显示主页
+
+        // profile_completed 还是 false
+        // 检查是否有 profileJustCompleted 标记（说明刚从信息收集对话返回，后台还在处理）
+        if (storage.get('profileJustCompleted')) {
+            console.log('信息收集刚完成，后台正在处理，跳过引导流程');
+            // 不清除标记，等下次 profile_completed 变为 true 时再清除
+            return;
+        }
+
+        // 未完成信息收集，也没有临时标记，启动引导流程
+        startOnboarding();
+
     } catch (error) {
         console.error('获取用户信息失败:', error);
         // 用户不存在（可能数据库重置了），重新创建
@@ -38,6 +41,7 @@ async function initApp() {
             storage.remove('userId');
             storage.remove('currentConversationId');
             storage.remove('selectedRecorder');
+            storage.remove('profileJustCompleted');
             await createNewUser();
             return;
         }
@@ -66,9 +70,9 @@ function startOnboarding() {
     // 修改确认按钮的行为
     window.onboardingMode = true;
 
-    // 默认选中女性记录师
-    pendingRecorder = 'female';
-    updateRecorderSelection('female');
+    // 不默认选中，让用户自己选择
+    pendingRecorder = null;
+    updateRecorderSelection(null);
 }
 
 // 开始新对话
@@ -198,6 +202,13 @@ async function selectRecorder(gender) {
 
 // 确认选择记录师
 async function confirmRecorder() {
+    // 引导模式下必须选择一个记录师
+    if (window.onboardingMode && !pendingRecorder) {
+        alert('请先选择一位记录师');
+        return;
+    }
+
+    // 非引导模式（设置页面）如果没选就用之前的
     if (!pendingRecorder) {
         pendingRecorder = storage.get('selectedRecorder') || 'female';
     }

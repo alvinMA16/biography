@@ -25,6 +25,10 @@ async function loadMemoir(memoirId) {
         document.getElementById('memoirTitle').textContent = currentMemoir.title;
         document.getElementById('memoirContent').textContent = currentMemoir.content || '（内容为空）';
 
+        // 显示年份信息
+        const yearText = formatYearRange(currentMemoir.year_start, currentMemoir.year_end, currentMemoir.time_period);
+        document.getElementById('memoirYear').textContent = yearText;
+
         // 如果有关联的对话，加载对话记录
         if (currentMemoir.conversation_id) {
             loadTranscript(currentMemoir.conversation_id);
@@ -34,6 +38,29 @@ async function loadMemoir(memoirId) {
         alert('加载失败: ' + error.message);
         goBack();
     }
+}
+
+// 格式化年份范围
+function formatYearRange(yearStart, yearEnd, timePeriod) {
+    let parts = [];
+
+    // 年份部分
+    if (yearStart && yearEnd) {
+        if (yearStart === yearEnd) {
+            parts.push(`${yearStart}年`);
+        } else {
+            parts.push(`${yearStart}-${yearEnd}年`);
+        }
+    } else if (yearStart) {
+        parts.push(`${yearStart}年`);
+    }
+
+    // 时期描述
+    if (timePeriod) {
+        parts.push(timePeriod);
+    }
+
+    return parts.join(' · ');
 }
 
 // 加载对话记录

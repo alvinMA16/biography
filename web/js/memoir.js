@@ -70,7 +70,8 @@ function renderMemoirs(memoirs) {
 
     listContainer.innerHTML = memoirs.map(memoir => {
         const isGenerating = memoir.status === 'generating';
-        const timeText = formatTimeRange(memoir.conversation_start, memoir.conversation_end);
+        const timeText = formatTimeRange(memoir.conversation_start, memoir.conversation_end);  // 对话时间
+        const yearText = formatYearRange(memoir.year_start, memoir.year_end, memoir.time_period);  // 内容年份
 
         return `
             <div class="memoir-item ${isGenerating ? 'generating' : ''}"
@@ -80,6 +81,7 @@ function renderMemoirs(memoirs) {
                         <h3>${memoir.title}</h3>
                         ${isGenerating ? '<span class="memoir-status">撰写中...</span>' : ''}
                     </div>
+                    ${yearText ? `<p class="memoir-year">${yearText}</p>` : ''}
                     ${timeText ? `<p class="memoir-time">${timeText}</p>` : ''}
                 </div>
                 <button class="btn-delete" onclick="deleteMemoir(event, '${memoir.id}')" title="删除">
@@ -90,6 +92,29 @@ function renderMemoirs(memoirs) {
             </div>
         `;
     }).join('');
+}
+
+// 格式化年份范围
+function formatYearRange(yearStart, yearEnd, timePeriod) {
+    let parts = [];
+
+    // 年份部分
+    if (yearStart && yearEnd) {
+        if (yearStart === yearEnd) {
+            parts.push(`${yearStart}年`);
+        } else {
+            parts.push(`${yearStart}-${yearEnd}年`);
+        }
+    } else if (yearStart) {
+        parts.push(`${yearStart}年`);
+    }
+
+    // 时期描述
+    if (timePeriod) {
+        parts.push(timePeriod);
+    }
+
+    return parts.join(' · ');
 }
 
 // 格式化时间范围

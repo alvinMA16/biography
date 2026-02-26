@@ -50,6 +50,12 @@ const api = {
             return api.request(`/user/${userId}/profile`);
         },
 
+        async completeProfile(userId) {
+            return api.request(`/user/${userId}/complete-profile`, {
+                method: 'POST',
+            });
+        },
+
         async delete(userId) {
             return api.request(`/user/${userId}`, {
                 method: 'DELETE',

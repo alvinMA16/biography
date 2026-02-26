@@ -42,8 +42,9 @@ window.onload = async function() {
     }
 
     // 检查是否是信息收集模式
+    // 注意：如果有 profileJustCompleted 标记，说明信息收集刚完成，不要再进入收集模式
     const userId = storage.get('userId');
-    if (userId) {
+    if (userId && !storage.get('profileJustCompleted')) {
         try {
             const profile = await api.user.getProfile(userId);
             isProfileCollectionMode = !profile.profile_completed;
@@ -514,11 +515,11 @@ async function autoEndProfileCollection() {
         // 结束对话
         await api.conversation.endQuick(conversationId);
         // 显示欢迎弹窗
-        showWelcomeModal();
+        await showWelcomeModal();
     } catch (error) {
         console.error('自动结束对话失败:', error);
         // 出错也显示弹窗，让用户能回到主页
-        showWelcomeModal();
+        await showWelcomeModal();
     }
 }
 
@@ -543,7 +544,7 @@ async function endChat() {
 
         if (isProfileCollectionMode) {
             // 信息收集模式：显示欢迎弹窗
-            showWelcomeModal();
+            await showWelcomeModal();
         } else {
             // 正常对话模式：后台生成回忆录，直接跳转
             const userId = storage.get('userId');
@@ -562,9 +563,20 @@ async function endChat() {
 }
 
 // 显示欢迎弹窗（信息收集完成后）
-function showWelcomeModal() {
-    // 标记信息收集已完成，避免主页重复触发引导
-    storage.set('profileJustCompleted', true);
+async function showWelcomeModal() {
+    // 直接调用后端标记 profile 完成，不依赖后台异步任务
+    const userId = storage.get('userId');
+    if (userId) {
+        try {
+            await api.user.completeProfile(userId);
+            console.log('已标记 profile 完成');
+        } catch (error) {
+            console.error('标记 profile 完成失败:', error);
+        }
+    }
+
+    // 清除临时标记（因为后端已经同步更新了）
+    storage.remove('profileJustCompleted');
 
     const modal = document.getElementById('welcomeModal');
     if (modal) {

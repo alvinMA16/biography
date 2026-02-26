@@ -32,12 +32,27 @@
             color: var(--color-accent);
         }
 
-        .detail-header h1 {
+        .header-center {
             flex: 1;
             text-align: center;
+            margin: 0 40px;
+        }
+
+        .detail-header h1 {
             font-size: 20px;
             font-weight: 400;
-            margin: 0 40px;
+            margin: 0;
+        }
+
+        .memoir-year {
+            font-size: 13px;
+            color: var(--color-text-light);
+            margin: 4px 0 0;
+            font-family: var(--font-sans);
+        }
+
+        .memoir-year:empty {
+            display: none;
         }
 
         .detail-content {
@@ -315,7 +330,10 @@
     <div class="container detail-page">
         <header class="detail-header">
             <button class="btn-back" onclick="goBack()">返回</button>
-            <h1 id="memoirTitle">加载中...</h1>
+            <div class="header-center">
+                <h1 id="memoirTitle">加载中...</h1>
+                <p class="memoir-year" id="memoirYear"></p>
+            </div>
             <div style="width: 40px;"></div>
         </header>
 
