@@ -258,7 +258,7 @@ class DoubaoRealtimeClient:
                 "asr": {
                     "extra": {
                         # 静音检测时间，越长越不容易打断用户（单位：毫秒）
-                        "end_smooth_window_ms": 2500,
+                        "end_smooth_window_ms": settings.doubao_asr_silence_ms,
                     },
                 },
                 "tts": {

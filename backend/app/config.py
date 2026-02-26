@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     doubao_access_key: str = ""
     doubao_ws_url: str = "wss://openspeech.bytedance.com/api/v3/realtime/dialogue"
     doubao_speaker: str = "zh_female_xiaohe_jupiter_bigtts"  # 发音人
+    doubao_asr_silence_ms: int = 4000  # 静音检测时间，越长越不容易打断用户
 
     # 应用配置
     debug: bool = True
