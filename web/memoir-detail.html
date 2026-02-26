@@ -6,48 +6,11 @@
     <title>回忆录详情</title>
     <link rel="stylesheet" href="css/style.css">
     <style>
-        .detail-page {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .detail-header {
-            display: flex;
-            align-items: center;
-            padding: 20px 32px;
-            border-bottom: 1px solid var(--color-border);
-        }
-
-        .detail-header .btn-back {
-            background: none;
-            border: none;
-            font-size: 14px;
-            color: var(--color-text-light);
-            cursor: pointer;
-            font-family: var(--font-sans);
-        }
-
-        .detail-header .btn-back:hover {
-            color: var(--color-accent);
-        }
-
-        .header-center {
-            flex: 1;
-            text-align: center;
-            margin: 0 40px;
-        }
-
-        .detail-header h1 {
-            font-size: 20px;
-            font-weight: 400;
-            margin: 0;
-        }
-
+        /* 详情页特有样式 */
         .memoir-year {
-            font-size: 13px;
+            font-size: 0.72em;
             color: var(--color-text-light);
-            margin: 4px 0 0;
+            margin: 0.2em 0 0;
             font-family: var(--font-sans);
         }
 
@@ -55,14 +18,8 @@
             display: none;
         }
 
-        .detail-content {
-            flex: 1;
-            padding: 32px;
-            overflow-y: auto;
-        }
-
         .memoir-text {
-            font-size: 17px;
+            font-size: 0.94em;
             line-height: 2;
             white-space: pre-wrap;
             max-width: 100%;
@@ -73,7 +30,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px 32px;
+            padding: 1em 1.5em;
             background: var(--color-bg);
             border-top: 1px solid var(--color-border);
         }
@@ -327,17 +284,17 @@
     </style>
 </head>
 <body>
-    <div class="container detail-page">
-        <header class="detail-header">
+    <div class="container inner-page">
+        <header class="page-header">
             <button class="btn-back" onclick="goBack()">返回</button>
-            <div class="header-center">
-                <h1 id="memoirTitle">加载中...</h1>
+            <div style="flex:1; text-align:center;">
+                <h1 class="header-title" id="memoirTitle">加载中...</h1>
                 <p class="memoir-year" id="memoirYear"></p>
             </div>
-            <div style="width: 40px;"></div>
+            <span class="header-spacer"></span>
         </header>
 
-        <main class="detail-content">
+        <main class="page-content">
             <div class="memoir-text" id="memoirContent">加载中...</div>
         </main>
 

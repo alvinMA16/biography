@@ -34,13 +34,14 @@
     </style>
 </head>
 <body>
-    <div class="container memoir-page">
-        <header class="memoir-header">
+    <div class="container inner-page memoir-page">
+        <header class="page-header">
             <button class="btn-back" onclick="goHome()">返回</button>
-            <h1>我的回忆</h1>
+            <h1 class="header-title">我的回忆</h1>
+            <span class="header-spacer"></span>
         </header>
 
-        <main>
+        <main class="page-content">
             <!-- 回忆录列表 -->
             <div class="memoir-list" id="memoirList">
                 <!-- 动态插入 -->

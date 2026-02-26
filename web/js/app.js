@@ -167,10 +167,9 @@ function openRecorderSelect() {
     const modal = document.getElementById('recorderModal');
     modal.style.display = 'flex';
 
-    // 高亮当前选择的记录师
-    const selected = storage.get('selectedRecorder') || 'female';
-    pendingRecorder = selected;
-    updateRecorderSelection(selected);
+    // 不默认选中，让用户必须手动点击
+    pendingRecorder = null;
+    updateRecorderSelection(null);
 }
 
 // 关闭记录师选择弹窗
@@ -202,15 +201,10 @@ async function selectRecorder(gender) {
 
 // 确认选择记录师
 async function confirmRecorder() {
-    // 引导模式下必须选择一个记录师
-    if (window.onboardingMode && !pendingRecorder) {
+    // 必须选择一个记录师
+    if (!pendingRecorder) {
         alert('请先选择一位记录师');
         return;
-    }
-
-    // 非引导模式（设置页面）如果没选就用之前的
-    if (!pendingRecorder) {
-        pendingRecorder = storage.get('selectedRecorder') || 'female';
     }
 
     storage.set('selectedRecorder', pendingRecorder);
