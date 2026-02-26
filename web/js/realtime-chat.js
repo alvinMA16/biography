@@ -1,5 +1,8 @@
 // 实时对话页面逻辑 - 基于豆包实时对话API
 
+// Debug 模式检测
+const DEBUG_MODE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
 let conversationId = null;
 let isProfileCollectionMode = false;  // 是否是信息收集模式
 let autoEndTriggered = false;  // 防止自动结束重复触发
@@ -25,6 +28,7 @@ let gainNode = null;   // 音量控制节点
 let isRecording = false;
 let currentAIResponse = '';  // 累积AI回复文本
 let isAISpeaking = false;    // AI是否正在说话
+let isFirstTTS = true;       // 是否是第一次 TTS（开场白），用于去重
 
 // 配置
 const SAMPLE_RATE_INPUT = 16000;   // 输入采样率
@@ -83,6 +87,15 @@ async function connectWebSocket() {
     // 获取用户ID
     const userId = storage.get('userId');
 
+    // 获取选择的话题信息
+    const selectedTopic = storage.get('selectedTopic');
+    const selectedGreeting = storage.get('selectedTopicGreeting');
+    const selectedContext = storage.get('selectedTopicContext');
+    // 使用后清除，避免下次对话重复使用
+    storage.remove('selectedTopic');
+    storage.remove('selectedTopicGreeting');
+    storage.remove('selectedTopicContext');
+
     // 构建 WebSocket URL，带上音色、记录师名字、对话ID和用户ID参数
     const params = new URLSearchParams({
         speaker: recorderInfo.speaker,
@@ -90,9 +103,21 @@ async function connectWebSocket() {
         conversation_id: conversationId,
         user_id: userId
     });
+
+    // 如果有选择的话题，添加到参数中
+    if (selectedTopic) {
+        params.set('topic', selectedTopic);
+    }
+    if (selectedGreeting) {
+        params.set('greeting', selectedGreeting);
+    }
+    if (selectedContext) {
+        params.set('context', selectedContext);
+    }
+
     const wsUrl = `ws://${hostname}:8001/api/realtime/dialog?${params.toString()}`;
 
-    console.log('连接 WebSocket:', wsUrl, '记录师:', recorderInfo.name, '用户:', userId);
+    console.log('连接 WebSocket:', wsUrl, '记录师:', recorderInfo.name, '用户:', userId, '开场白:', selectedGreeting ? '自定义' : '默认');
 
     try {
         ws = new WebSocket(wsUrl);
@@ -130,7 +155,7 @@ function handleServerMessage(message) {
         case 'status':
             if (message.status === 'connected') {
                 isConnected = true;
-                updateAIText('已连接，等待开场白...');
+                updateAIText('');  // 清空，等待 AI 开始说话后再显示
                 updateVoiceStatus('请稍候');
             } else if (message.status === 'error') {
                 showError(message.message);
@@ -172,6 +197,13 @@ function handleServerMessage(message) {
         case 'event':
             handleEvent(message.event, message.payload);
             break;
+
+        case 'debug':
+            // Debug 模式下显示调试信息
+            if (DEBUG_MODE && message.message) {
+                showToast(message.message);
+            }
+            break;
     }
 }
 
@@ -190,6 +222,10 @@ function handleEvent(event, payload) {
         case 359:
             // TTS 结束 - AI 说完了，可以开始录音
             isAISpeaking = false;
+            // 第一次 TTS 结束后，标记已完成开场白
+            if (isFirstTTS) {
+                isFirstTTS = false;
+            }
             updateVoiceStatus('请开始说话');
             setTimeout(() => {
                 startRecording();

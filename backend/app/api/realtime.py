@@ -9,7 +9,6 @@ from urllib.parse import parse_qs
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.services.doubao_realtime import DoubaoRealtimeClient
-from app.services.greeting_service import greeting_service
 from app.database import SessionLocal
 from app.models import Message, User
 
@@ -64,7 +63,10 @@ async def realtime_dialog(websocket: WebSocket):
     conversation_id = query_params.get("conversation_id", [None])[0]
     user_id = query_params.get("user_id", [None])[0]
     mode = query_params.get("mode", ["normal"])[0]  # normal 或 profile_collection
-    print(f"[Realtime] 收到连接请求, speaker={speaker}, recorder_name={recorder_name}, conversation_id={conversation_id}, user_id={user_id}, mode={mode}")
+    custom_topic = query_params.get("topic", [None])[0]  # 话题标题
+    custom_greeting = query_params.get("greeting", [None])[0]  # 自定义开场白
+    custom_context = query_params.get("context", [None])[0]  # 预生成的对话上下文
+    print(f"[Realtime] 收到连接请求, speaker={speaker}, recorder_name={recorder_name}, conversation_id={conversation_id}, user_id={user_id}, mode={mode}, topic={'有' if custom_topic else '无'}, greeting={'有' if custom_greeting else '无'}, context={'有' if custom_context else '无'}")
 
     client = None
     receive_task = None
@@ -195,16 +197,46 @@ async def realtime_dialog(websocket: WebSocket):
         if actual_mode == "profile_collection":
             # 信息收集模式
             greeting = f"您好！我是{recorder_name}，很高兴认识您。在开始记录您的故事之前，我想先了解一下您。请问我应该怎么称呼您呢？"
+        elif custom_greeting:
+            # 使用前端传入的自定义开场白（用户选择的话题）
+            greeting = custom_greeting
+            print(f"[Realtime] 使用自定义开场白: {greeting[:50]}...")
         elif user_id:
-            # 正常模式，从候选池获取开场白
+            # 正常模式，从话题候选池获取
+            from app.services.topic_service import topic_service
             db = SessionLocal()
             try:
-                greeting = greeting_service.get_random_greeting(db, user_id)
+                topics = topic_service.get_topic_options(db, user_id)
+                if topics:
+                    import random
+                    topic = random.choice(topics)
+                    greeting = topic.get('greeting')
             finally:
                 db.close()
 
         # 发送开场白
         await client.say_hello(greeting)
+
+        # 如果有预生成的上下文，注入到对话中
+        if actual_mode != "profile_collection" and custom_context:
+            try:
+                await client.conversation_create(
+                    user_text=f"【我的相关背景】{custom_context}",
+                    assistant_text="好的，我了解了您的背景，咱们继续聊。"
+                )
+                print(f"[Realtime] 话题上下文已注入（{len(custom_context)}字符）")
+
+                # 发送 debug 消息给前端
+                try:
+                    await websocket.send_json({
+                        "type": "debug",
+                        "event": "context_injected",
+                        "message": f"已注入话题上下文（{len(custom_context)}字符）"
+                    })
+                except:
+                    pass
+            except Exception as e:
+                print(f"[Realtime] 注入上下文失败: {e}")
 
         # 处理前端消息
         while True:

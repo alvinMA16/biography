@@ -24,12 +24,29 @@ class User(Base):
     # 时代记忆状态: none(未收集基础信息) / pending(等待生成) / generating(生成中) / completed(已完成) / failed(失败)
     era_memories_status = Column(String(20), default='none')
 
-    # 开场白候选池
+    # 话题候选池
+    topic_candidates = relationship("TopicCandidate", back_populates="user", cascade="all, delete-orphan")
+
+    # 旧的开场白候选池（兼容）
     greeting_candidates = relationship("GreetingCandidate", back_populates="user", cascade="all, delete-orphan")
 
 
+class TopicCandidate(Base):
+    """预生成的话题候选（用户开始新对话时选择）"""
+    __tablename__ = "topic_candidates"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    topic = Column(String(200), nullable=False)  # 话题描述（给用户看的选项）
+    greeting = Column(Text, nullable=False)  # 对应的开场白
+    chat_context = Column(Text, nullable=True)  # 对话时注入的背景上下文
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="topic_candidates")
+
+
 class GreetingCandidate(Base):
-    """预生成的开场白候选"""
+    """预生成的开场白候选（旧版，保留兼容）"""
     __tablename__ = "greeting_candidates"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))

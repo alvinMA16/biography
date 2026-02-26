@@ -172,6 +172,23 @@ const api = {
         },
     },
 
+    // 话题相关
+    topic: {
+        async getOptions(userId) {
+            return api.request(`/topic/user/${userId}/options`);
+        },
+
+        async refresh(userId) {
+            return api.request(`/topic/user/${userId}/refresh`, {
+                method: 'POST',
+            });
+        },
+
+        async get(topicId) {
+            return api.request(`/topic/${topicId}`);
+        },
+    },
+
     // 回忆录相关
     memoir: {
         async generate(userId, conversationId, title = null, perspective = '第一人称') {

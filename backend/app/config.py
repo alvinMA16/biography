@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     # 应用配置
     debug: bool = True
 
+    # 话题生成配置
+    topic_memoir_count: int = 10  # 生成话题时参考的最近回忆录数量
+    topic_option_count: int = 4   # 生成的话题选项数量
+
     class Config:
         env_file = ".env"
 

@@ -12,6 +12,7 @@ from openai import OpenAI
 from app.config import settings
 from app.models import User, Conversation, Message
 from app.services.greeting_service import greeting_service
+from app.services.topic_service import topic_service
 
 
 class ProfileService:
@@ -113,6 +114,9 @@ class ProfileService:
 
                 # 生成初始开场白
                 greeting_service.generate_initial_greetings(db, user)
+
+                # 生成初始话题选项
+                topic_service.generate_topic_options(db, user)
 
                 # 异步生成时代记忆
                 if should_generate_era:

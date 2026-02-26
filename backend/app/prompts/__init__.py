@@ -11,5 +11,7 @@ from app.prompts import summary           # 生成摘要
 from app.prompts import era_memories      # 生成时代记忆
 from app.prompts import title             # 生成标题
 from app.prompts import time_period       # 推断时间段
-from app.prompts import greeting          # 生成开场白
+from app.prompts import greeting          # 生成开场白（旧版）
+from app.prompts import topic_options     # 生成话题选项（含上下文）
+from app.prompts import topic_review      # 审查和更新话题池
 from app.prompts import profile_extraction  # 提取用户信息

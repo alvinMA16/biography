@@ -72,6 +72,21 @@
         </div>
     </div>
 
+    <!-- 话题选择弹窗 -->
+    <div class="modal" id="topicModal" style="display: none;">
+        <div class="modal-content topic-modal">
+            <div class="modal-header">
+                <h2 id="topicModalTitle">今天想聊点什么？</h2>
+                <button class="btn-close" onclick="closeTopicModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="topic-options" id="topicOptions">
+                    <p class="loading-text">加载中...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 选择记录师弹窗 -->
     <div class="modal" id="recorderModal" style="display: none;">
         <div class="modal-content recorder-modal">
@@ -129,6 +144,12 @@
         document.getElementById('eraMemoriesModal').addEventListener('click', function(e) {
             if (e.target === this) {
                 closeEraMemoriesModal();
+            }
+        });
+
+        document.getElementById('topicModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeTopicModal();
             }
         });
     </script>

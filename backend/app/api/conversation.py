@@ -9,6 +9,7 @@ from app.services.chat_service import chat_service
 from app.services.llm_service import llm_service
 from app.services.summary_service import summary_service
 from app.services.greeting_service import greeting_service
+from app.services.topic_service import topic_service
 from app.services.profile_service import profile_service
 from app.models import Conversation, User
 
@@ -136,6 +137,9 @@ def process_conversation_end(conversation_id: str, user_id: str):
 
             # 2. 刷新用户的开场白池
             greeting_service.refresh_greetings(db, user_id)
+
+            # 3. 异步审查和更新话题池（不阻塞）
+            topic_service.review_topic_pool_async(user_id)
 
         print(f"[Conversation] 对话结束任务完成: {conversation_id}")
     except Exception as e:

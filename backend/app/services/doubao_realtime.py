@@ -362,6 +362,35 @@ class DoubaoRealtimeClient:
         finally:
             self.is_connected = False
 
+    async def conversation_create(self, user_text: str, assistant_text: str) -> None:
+        """
+        向对话中注入一条历史记录（用于动态添加背景信息）
+
+        Args:
+            user_text: 用户侧的文本（如背景信息）
+            assistant_text: 助手侧的回复（如"好的，我了解了"）
+        """
+        if not self.ws or not self.is_connected:
+            return
+
+        payload = {
+            "items": [
+                {"role": "user", "text": user_text},
+                {"role": "assistant", "text": assistant_text}
+            ]
+        }
+
+        print(f"[Doubao] ConversationCreate: 注入背景信息 ({len(user_text)} 字符)")
+
+        request = bytearray(generate_header())
+        request.extend(int(510).to_bytes(4, 'big'))  # 事件 510: ConversationCreate
+        payload_bytes = gzip.compress(json.dumps(payload).encode())
+        request.extend(len(self.session_id).to_bytes(4, 'big'))
+        request.extend(self.session_id.encode())
+        request.extend(len(payload_bytes).to_bytes(4, 'big'))
+        request.extend(payload_bytes)
+        await self.ws.send(request)
+
     async def finish_session(self) -> None:
         """结束会话"""
         if not self.ws:

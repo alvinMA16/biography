@@ -85,7 +85,7 @@ function startOnboarding() {
     updateRecorderSelection(null);
 }
 
-// 开始新对话
+// 开始新对话 - 先选择话题
 async function startNewChat() {
     const userId = storage.get('userId');
     if (!userId) {
@@ -93,9 +93,107 @@ async function startNewChat() {
         return;
     }
 
+    // 显示话题选择弹窗
+    openTopicModal();
+}
+
+// ========== 话题选择 ==========
+
+// 话题弹窗标题候选
+const TOPIC_MODAL_TITLES = [
+    "这次想聊聊哪段经历？",
+    "您想从哪里开始讲起？",
+    "今天想回忆点什么？",
+    "咱们聊聊什么好？",
+    "您想讲讲哪方面的事？",
+];
+
+function openTopicModal() {
+    const modal = document.getElementById('topicModal');
+    modal.style.display = 'flex';
+
+    // 随机选择标题
+    const title = TOPIC_MODAL_TITLES[Math.floor(Math.random() * TOPIC_MODAL_TITLES.length)];
+    document.getElementById('topicModalTitle').textContent = title;
+
+    loadTopicOptions();
+}
+
+function closeTopicModal() {
+    document.getElementById('topicModal').style.display = 'none';
+}
+
+async function loadTopicOptions() {
+    const userId = storage.get('userId');
+    if (!userId) return;
+
+    const container = document.getElementById('topicOptions');
+    container.innerHTML = `
+        <div class="topic-loading">
+            <div class="loading-dots"><span></span><span></span><span></span></div>
+            <p>正在回顾您的故事，请稍等</p>
+        </div>
+    `;
+
     try {
+        const data = await api.topic.getOptions(userId);
+        const options = data.options || [];
+
+        if (options.length === 0) {
+            container.innerHTML = '<p class="topic-empty">暂时没有准备好话题，请稍后再试</p>';
+            return;
+        }
+
+        // 保存选项数据供点击时使用
+        window._topicOptions = options;
+
+        container.innerHTML = options.map((opt, index) => `
+            <div class="topic-option" onclick="selectTopicByIndex(${index})">
+                <div class="topic-title">${escapeHtml(opt.topic)}</div>
+            </div>
+        `).join('');
+
+    } catch (error) {
+        console.error('加载话题失败:', error);
+        container.innerHTML = '<p class="topic-empty">加载失败，请稍后重试</p>';
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// 通过索引选择话题（避免 HTML 转义问题）
+async function selectTopicByIndex(index) {
+    const options = window._topicOptions || [];
+    if (index < 0 || index >= options.length) return;
+
+    const opt = options[index];
+    await selectTopic(opt.id, opt.topic, opt.greeting, opt.context);
+}
+
+async function selectTopic(topicId, topic, greeting, context) {
+    const userId = storage.get('userId');
+    if (!userId) {
+        alert('请先刷新页面');
+        return;
+    }
+
+    closeTopicModal();
+
+    try {
+        // 创建新对话
         const result = await api.conversation.start(userId);
         storage.set('currentConversationId', result.conversation_id);
+
+        // 存储选择的话题信息
+        storage.set('selectedTopic', topic);
+        storage.set('selectedTopicGreeting', greeting);
+        storage.set('selectedTopicContext', context || '');
+
+        // 跳转到对话页面
         window.location.href = 'chat.html';
     } catch (error) {
         console.error('开始对话失败:', error);
