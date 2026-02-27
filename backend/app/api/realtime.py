@@ -11,6 +11,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.services.doubao_realtime import DoubaoRealtimeClient
 from app.database import SessionLocal
 from app.models import Message, User
+from app.auth import decode_token
 
 router = APIRouter()
 
@@ -37,6 +38,14 @@ def save_message(conversation_id: str, role: str, content: str):
         db.close()
 
 
+def authenticate_ws(query_params: dict) -> str:
+    """从 WebSocket query params 中解析 token，返回 user_id"""
+    token = query_params.get("token", [None])[0]
+    if not token:
+        raise ValueError("缺少认证令牌")
+    return decode_token(token)
+
+
 @router.websocket("/dialog")
 async def realtime_dialog(websocket: WebSocket):
     """
@@ -58,10 +67,22 @@ async def realtime_dialog(websocket: WebSocket):
     # 从 URL 查询参数中获取参数
     query_string = websocket.scope.get("query_string", b"").decode()
     query_params = parse_qs(query_string)
+
+    # 认证：从 token 获取 user_id
+    try:
+        user_id = authenticate_ws(query_params)
+    except Exception as e:
+        await websocket.send_json({
+            "type": "status",
+            "status": "error",
+            "message": f"认证失败: {str(e)}"
+        })
+        await websocket.close(code=4001)
+        return
+
     speaker = query_params.get("speaker", [None])[0]
     recorder_name = query_params.get("recorder_name", ["小安"])[0]  # 记录师名字
     conversation_id = query_params.get("conversation_id", [None])[0]
-    user_id = query_params.get("user_id", [None])[0]
     mode = query_params.get("mode", ["normal"])[0]  # normal 或 profile_collection
     custom_topic = query_params.get("topic", [None])[0]  # 话题标题
     custom_greeting = query_params.get("greeting", [None])[0]  # 自定义开场白

@@ -12,6 +12,7 @@ from app.services.greeting_service import greeting_service
 from app.services.topic_service import topic_service
 from app.services.profile_service import profile_service
 from app.models import Conversation, User
+from app.auth import get_current_user
 
 router = APIRouter()
 
@@ -50,22 +51,38 @@ class ChatResponse(BaseModel):
     message: str
 
 
+def _check_ownership(db: Session, conversation_id: str, user_id: str) -> Conversation:
+    """校验对话所有权，返回 conversation 对象"""
+    conversation = chat_service.get_conversation(db, conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="对话不存在")
+    if conversation.user_id != user_id:
+        raise HTTPException(status_code=403, detail="无权访问该对话")
+    return conversation
+
+
 @router.post("/start", response_model=StartResponse)
-def start_conversation(user_id: str, db: Session = Depends(get_db)):
+def start_conversation(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """开始新对话"""
-    conversation, first_message = chat_service.start_conversation(db, user_id)
+    conversation, first_message = chat_service.start_conversation(db, current_user.id)
     return StartResponse(
         conversation_id=conversation.id,
-        message=first_message
+        message=first_message,
     )
 
 
 @router.post("/{conversation_id}/chat", response_model=ChatResponse)
-def chat(conversation_id: str, request: ChatRequest, db: Session = Depends(get_db)):
+def chat(
+    conversation_id: str,
+    request: ChatRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """发送消息"""
-    conversation = chat_service.get_conversation(db, conversation_id)
-    if not conversation:
-        raise HTTPException(status_code=404, detail="对话不存在")
+    conversation = _check_ownership(db, conversation_id, current_user.id)
 
     if conversation.status == "completed":
         raise HTTPException(status_code=400, detail="对话已结束")
@@ -75,13 +92,15 @@ def chat(conversation_id: str, request: ChatRequest, db: Session = Depends(get_d
 
 
 @router.post("/{conversation_id}/chat/stream")
-def chat_stream(conversation_id: str, request: ChatRequest):
+def chat_stream(
+    conversation_id: str,
+    request: ChatRequest,
+    current_user: User = Depends(get_current_user),
+):
     """流式发送消息"""
     db = SessionLocal()
     try:
-        conversation = chat_service.get_conversation(db, conversation_id)
-        if not conversation:
-            raise HTTPException(status_code=404, detail="对话不存在")
+        conversation = _check_ownership(db, conversation_id, current_user.id)
 
         if conversation.status == "completed":
             raise HTTPException(status_code=400, detail="对话已结束")
@@ -100,7 +119,7 @@ def chat_stream(conversation_id: str, request: ChatRequest):
             headers={
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
-            }
+            },
         )
     except Exception as e:
         db.close()
@@ -108,8 +127,13 @@ def chat_stream(conversation_id: str, request: ChatRequest):
 
 
 @router.post("/{conversation_id}/end", response_model=ConversationResponse)
-def end_conversation(conversation_id: str, db: Session = Depends(get_db)):
+def end_conversation(
+    conversation_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """结束对话（生成摘要）"""
+    _check_ownership(db, conversation_id, current_user.id)
     conversation = chat_service.end_conversation(db, conversation_id)
     if not conversation:
         raise HTTPException(status_code=404, detail="对话不存在")
@@ -122,23 +146,14 @@ def process_conversation_end(conversation_id: str, user_id: str):
     try:
         print(f"[Conversation] 开始处理对话结束任务: {conversation_id}")
 
-        # 检查用户是否完成了信息收集
         user = db.query(User).filter(User.id == user_id).first()
 
         if user and not user.profile_completed:
-            # 用户未完成信息收集，尝试从对话中提取信息
             print(f"[Conversation] 用户未完成信息收集，尝试提取...")
             profile_service.extract_and_update_profile(db, conversation_id, user_id)
-            # 如果信息收集完成，generate_initial_greetings 会在 profile_service 中被调用
         else:
-            # 正常对话结束流程
-            # 1. 生成对话摘要
             summary_service.generate_summary(db, conversation_id)
-
-            # 2. 刷新用户的开场白池
             greeting_service.refresh_greetings(db, user_id)
-
-            # 3. 异步审查和更新话题池（不阻塞）
             topic_service.review_topic_pool_async(user_id)
 
         print(f"[Conversation] 对话结束任务完成: {conversation_id}")
@@ -154,43 +169,49 @@ def process_conversation_end(conversation_id: str, user_id: str):
 def end_conversation_quick(
     conversation_id: str,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """快速结束对话（后台生成摘要和刷新开场白）"""
+    _check_ownership(db, conversation_id, current_user.id)
     conversation = chat_service.end_conversation_quick(db, conversation_id)
     if not conversation:
         raise HTTPException(status_code=404, detail="对话不存在")
 
-    # 后台任务：生成摘要、刷新开场白
     background_tasks.add_task(
         process_conversation_end,
         conversation_id,
-        conversation.user_id
+        conversation.user_id,
     )
 
     return {"status": "ok", "conversation_id": conversation_id}
 
 
-@router.get("/{conversation_id}", response_model=ConversationResponse)
-def get_conversation(conversation_id: str, db: Session = Depends(get_db)):
-    """获取对话详情"""
-    conversation = chat_service.get_conversation(db, conversation_id)
-    if not conversation:
-        raise HTTPException(status_code=404, detail="对话不存在")
-    return conversation
-
-
-@router.get("/user/{user_id}/list")
-def list_conversations(user_id: str, db: Session = Depends(get_db)):
+@router.get("/list")
+def list_conversations(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """获取用户的对话列表"""
-    conversations = chat_service.get_user_conversations(db, user_id)
+    conversations = chat_service.get_user_conversations(db, current_user.id)
     return [
         {
             "id": c.id,
             "title": c.title,
             "summary": c.summary,
             "status": c.status,
-            "created_at": c.created_at.isoformat()
+            "created_at": c.created_at.isoformat(),
         }
         for c in conversations
     ]
+
+
+@router.get("/{conversation_id}", response_model=ConversationResponse)
+def get_conversation(
+    conversation_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """获取对话详情"""
+    conversation = _check_ownership(db, conversation_id, current_user.id)
+    return conversation

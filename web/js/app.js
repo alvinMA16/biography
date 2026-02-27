@@ -5,6 +5,13 @@ const DEBUG_MODE = window.location.hostname === 'localhost' || window.location.h
 
 // 初始化应用
 async function initApp() {
+    // 检查是否已登录
+    const token = storage.get('token');
+    if (!token) {
+        window.location.href = 'login.html';
+        return;
+    }
+
     // 如果是 debug 模式，显示时代记忆入口
     if (DEBUG_MODE) {
         const eraMemoriesBtn = document.getElementById('eraMemoriesBtn');
@@ -15,17 +22,9 @@ async function initApp() {
     // 确保弹窗初始状态是关闭的
     closeRecorderModal();
 
-    let userId = storage.get('userId');
-
-    // 如果没有用户，创建一个新用户并启动引导流程
-    if (!userId) {
-        await createNewUser();
-        return;
-    }
-
     // 检查用户是否存在且完成了信息收集
     try {
-        const profile = await api.user.getProfile(userId);
+        const profile = await api.user.getProfile();
 
         if (profile.profile_completed) {
             // 用户已完成信息收集，清除临时标记，正常显示主页
@@ -37,7 +36,6 @@ async function initApp() {
         // 检查是否有 profileJustCompleted 标记（说明刚从信息收集对话返回，后台还在处理）
         if (storage.get('profileJustCompleted')) {
             console.log('信息收集刚完成，后台正在处理，跳过引导流程');
-            // 不清除标记，等下次 profile_completed 变为 true 时再清除
             return;
         }
 
@@ -46,28 +44,7 @@ async function initApp() {
 
     } catch (error) {
         console.error('获取用户信息失败:', error);
-        // 用户不存在（可能数据库重置了），重新创建
-        if (error.message.includes('不存在')) {
-            storage.remove('userId');
-            storage.remove('currentConversationId');
-            storage.remove('selectedRecorder');
-            storage.remove('profileJustCompleted');
-            await createNewUser();
-            return;
-        }
-    }
-}
-
-// 创建新用户
-async function createNewUser() {
-    try {
-        const user = await api.user.create();
-        storage.set('userId', user.id);
-        // 新用户，启动引导流程
-        startOnboarding();
-    } catch (error) {
-        console.error('创建用户失败:', error);
-        alert('连接服务器失败，请确保后端服务已启动');
+        // 如果是认证错误，api.js 会自动跳转到登录页
     }
 }
 
@@ -87,9 +64,9 @@ function startOnboarding() {
 
 // 开始新对话 - 先选择话题
 async function startNewChat() {
-    const userId = storage.get('userId');
-    if (!userId) {
-        alert('请先刷新页面');
+    const token = storage.get('token');
+    if (!token) {
+        window.location.href = 'login.html';
         return;
     }
 
@@ -124,9 +101,6 @@ function closeTopicModal() {
 }
 
 async function loadTopicOptions() {
-    const userId = storage.get('userId');
-    if (!userId) return;
-
     const container = document.getElementById('topicOptions');
     container.innerHTML = `
         <div class="topic-loading">
@@ -136,7 +110,7 @@ async function loadTopicOptions() {
     `;
 
     try {
-        const data = await api.topic.getOptions(userId);
+        const data = await api.topic.getOptions();
         const options = data.options || [];
 
         if (options.length === 0) {
@@ -175,17 +149,11 @@ async function selectTopicByIndex(index) {
 }
 
 async function selectTopic(topicId, topic, greeting, context) {
-    const userId = storage.get('userId');
-    if (!userId) {
-        alert('请先刷新页面');
-        return;
-    }
-
     closeTopicModal();
 
     try {
         // 创建新对话
-        const result = await api.conversation.start(userId);
+        const result = await api.conversation.start();
         storage.set('currentConversationId', result.conversation_id);
 
         // 存储选择的话题信息
@@ -212,24 +180,20 @@ function toggleDropdown() {
     dropdown.classList.toggle('show');
 }
 
-// 退出登录（保留服务器数据，只清除本地登录状态）
+// 退出登录
 function logout() {
-    if (confirm('确定要退出登录吗？下次登录需要重新创建账号。')) {
+    if (confirm('确定要退出登录吗？')) {
+        storage.remove('token');
         storage.remove('userId');
         storage.remove('currentConversationId');
         storage.remove('selectedRecorder');
-        window.location.reload();
+        storage.remove('profileJustCompleted');
+        window.location.href = 'login.html';
     }
 }
 
 // 注销账号（删除服务器上的所有数据）
 async function deleteAccount() {
-    const userId = storage.get('userId');
-    if (!userId) {
-        alert('当前没有登录账号');
-        return;
-    }
-
     if (!confirm('确定要注销账号吗？\n\n注销后，您的所有回忆和对话记录都将被永久删除，无法恢复。')) {
         return;
     }
@@ -240,12 +204,13 @@ async function deleteAccount() {
     }
 
     try {
-        await api.user.delete(userId);
+        await api.user.delete();
+        storage.remove('token');
         storage.remove('userId');
         storage.remove('currentConversationId');
         storage.remove('selectedRecorder');
         alert('账号已注销');
-        window.location.reload();
+        window.location.href = 'login.html';
     } catch (error) {
         console.error('注销账号失败:', error);
         alert('注销失败: ' + error.message);
@@ -328,15 +293,9 @@ async function confirmRecorder() {
 
 // 进入信息收集对话
 async function startProfileCollection() {
-    const userId = storage.get('userId');
-    if (!userId) {
-        alert('请先刷新页面');
-        return;
-    }
-
     try {
         // 创建新对话
-        const result = await api.conversation.start(userId);
+        const result = await api.conversation.start();
         storage.set('currentConversationId', result.conversation_id);
         // 跳转到对话页面（会自动检测到未完成信息收集）
         window.location.href = 'chat.html';
@@ -455,11 +414,6 @@ function closeEraMemoriesModal() {
 let eraMemoriesPollingTimer = null;
 
 async function loadEraMemories() {
-    const userId = storage.get('userId');
-    if (!userId) {
-        return;
-    }
-
     const contentEl = document.getElementById('eraMemoriesContent');
     const statusEl = document.getElementById('eraMemoriesStatus');
     const birthYearEl = document.getElementById('eraInfoBirthYear');
@@ -470,7 +424,7 @@ async function loadEraMemories() {
     contentEl.innerHTML = '<p class="loading-text">加载中...</p>';
 
     try {
-        const data = await api.user.getEraMemories(userId);
+        const data = await api.user.getEraMemories();
 
         // 更新用户信息
         birthYearEl.textContent = data.birth_year || '-';
@@ -490,7 +444,6 @@ async function loadEraMemories() {
             contentEl.innerHTML = '<p class="loading-text">正在生成中，请稍候...</p>';
             regenerateBtn.disabled = true;
             regenerateBtn.textContent = '生成中...';
-            // 启动轮询
             startEraMemoriesPolling();
         } else if (status === 'pending') {
             contentEl.innerHTML = '<p class="empty-text">已收集基础信息，等待生成时代记忆</p>';
@@ -544,11 +497,6 @@ function stopEraMemoriesPolling() {
 }
 
 async function regenerateEraMemories() {
-    const userId = storage.get('userId');
-    if (!userId) {
-        return;
-    }
-
     const contentEl = document.getElementById('eraMemoriesContent');
     const regenerateBtn = document.getElementById('regenerateBtn');
 
@@ -558,7 +506,7 @@ async function regenerateEraMemories() {
     regenerateBtn.textContent = '生成中...';
 
     try {
-        const data = await api.user.regenerateEraMemories(userId);
+        const data = await api.user.regenerateEraMemories();
 
         if (data.era_memories) {
             contentEl.textContent = data.era_memories;

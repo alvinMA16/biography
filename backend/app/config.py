@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     doubao_speaker: str = "zh_female_xiaohe_jupiter_bigtts"  # 发音人
     doubao_asr_silence_ms: int = 4000  # 静音检测时间，越长越不容易打断用户
 
+    # 认证配置
+    jwt_secret: str = "change-me-in-production"
+    jwt_expire_days: int = 30
+    admin_api_key: str = ""
+
     # 应用配置
     debug: bool = True
 

@@ -22,8 +22,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    expose:
-      - "8000"
+    ports:
+      - "127.0.0.1:8001:8000"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-biography}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-biography}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY}
@@ -34,6 +34,9 @@ services:
       DOUBAO_ACCESS_KEY: ${DOUBAO_ACCESS_KEY}
       DOUBAO_SPEAKER: ${DOUBAO_SPEAKER:-zh_female_xiaohe_jupiter_bigtts}
       DOUBAO_ASR_SILENCE_MS: ${DOUBAO_ASR_SILENCE_MS:-4000}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_EXPIRE_DAYS: ${JWT_EXPIRE_DAYS:-30}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-}
       WORKERS: ${WORKERS:-2}
       DEBUG: ${DEBUG:-false}
 

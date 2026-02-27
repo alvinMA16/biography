@@ -10,6 +10,9 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    phone = Column(String(20), unique=True, nullable=True, index=True)
+    password_hash = Column(String(128), nullable=True)
+    is_admin = Column(Boolean, default=False)
     nickname = Column(String(32), nullable=True)
     settings = Column(JSON, default=dict)
     created_at = Column(DateTime, default=datetime.utcnow)

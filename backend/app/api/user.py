@@ -5,12 +5,9 @@ from typing import Optional, Dict, Any
 
 from app.database import get_db
 from app.models import User, Conversation, Message, Memoir, GreetingCandidate
+from app.auth import get_current_user
 
 router = APIRouter()
-
-
-class UserCreate(BaseModel):
-    nickname: Optional[str] = None
 
 
 class UserSettings(BaseModel):
@@ -47,71 +44,53 @@ class EraMemoriesResponse(BaseModel):
     main_city: Optional[str]
 
 
-@router.post("/create", response_model=UserResponse)
-def create_user(user_data: UserCreate, db: Session = Depends(get_db)):
-    """创建新用户（体验版简化，无需微信登录）"""
-    user = User(nickname=user_data.nickname)
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user
+@router.get("/me", response_model=UserResponse)
+def get_user(current_user: User = Depends(get_current_user)):
+    """获取当前用户信息"""
+    return current_user
 
 
-@router.get("/{user_id}", response_model=UserResponse)
-def get_user(user_id: str, db: Session = Depends(get_db)):
-    """获取用户信息"""
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="用户不存在")
-    return user
-
-
-@router.put("/{user_id}/settings", response_model=UserResponse)
-def update_settings(user_id: str, settings: UserSettings, db: Session = Depends(get_db)):
+@router.put("/me/settings", response_model=UserResponse)
+def update_settings(
+    settings: UserSettings,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """更新用户设置"""
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="用户不存在")
-
-    user.settings = settings.model_dump()
+    current_user.settings = settings.model_dump()
     db.commit()
-    db.refresh(user)
-    return user
+    db.refresh(current_user)
+    return current_user
 
 
-@router.get("/{user_id}/profile", response_model=UserProfileResponse)
-def get_user_profile(user_id: str, db: Session = Depends(get_db)):
+@router.get("/me/profile", response_model=UserProfileResponse)
+def get_user_profile(current_user: User = Depends(get_current_user)):
     """获取用户基础信息（用于判断是否需要信息收集）"""
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="用户不存在")
-
     return UserProfileResponse(
-        nickname=user.nickname,
-        birth_year=user.birth_year,
-        hometown=user.hometown,
-        main_city=user.main_city,
-        profile_completed=user.profile_completed or False
+        nickname=current_user.nickname,
+        birth_year=current_user.birth_year,
+        hometown=current_user.hometown,
+        main_city=current_user.main_city,
+        profile_completed=current_user.profile_completed or False,
     )
 
 
-@router.get("/{user_id}/era-memories", response_model=EraMemoriesResponse)
-def get_era_memories(user_id: str, db: Session = Depends(get_db)):
+@router.get("/me/era-memories", response_model=EraMemoriesResponse)
+def get_era_memories(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """获取用户的时代记忆"""
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="用户不存在")
+    user = current_user
 
     # 智能判断状态（兼容旧数据）
     status = user.era_memories_status or 'none'
     if status == 'none':
         if user.era_memories:
-            # 有内容但状态是 none，说明是旧数据，修正为 completed
             status = 'completed'
             user.era_memories_status = 'completed'
             db.commit()
         elif user.birth_year:
-            # 有出生年份但没生成，状态应该是 pending
             status = 'pending'
             user.era_memories_status = 'pending'
             db.commit()
@@ -121,72 +100,62 @@ def get_era_memories(user_id: str, db: Session = Depends(get_db)):
         era_memories_status=status,
         birth_year=user.birth_year,
         hometown=user.hometown,
-        main_city=user.main_city
+        main_city=user.main_city,
     )
 
 
-@router.post("/{user_id}/era-memories/regenerate", response_model=EraMemoriesResponse)
-def regenerate_era_memories(user_id: str, db: Session = Depends(get_db)):
+@router.post("/me/era-memories/regenerate", response_model=EraMemoriesResponse)
+def regenerate_era_memories(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """重新生成时代记忆"""
     from app.services.profile_service import profile_service
 
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="用户不存在")
-
-    if not user.birth_year:
+    if not current_user.birth_year:
         raise HTTPException(status_code=400, detail="缺少出生年份信息")
 
-    era_memories = profile_service.regenerate_era_memories(db, user_id)
-
-    # 重新获取用户以获取最新状态
-    db.refresh(user)
+    era_memories = profile_service.regenerate_era_memories(db, current_user.id)
+    db.refresh(current_user)
 
     return EraMemoriesResponse(
         era_memories=era_memories,
-        era_memories_status=user.era_memories_status or 'completed',
-        birth_year=user.birth_year,
-        hometown=user.hometown,
-        main_city=user.main_city
+        era_memories_status=current_user.era_memories_status or 'completed',
+        birth_year=current_user.birth_year,
+        hometown=current_user.hometown,
+        main_city=current_user.main_city,
     )
 
 
-@router.post("/{user_id}/complete-profile")
-def complete_profile(user_id: str, db: Session = Depends(get_db)):
+@router.post("/me/complete-profile")
+def complete_profile(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """标记用户信息收集已完成"""
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="用户不存在")
-
-    user.profile_completed = True
+    current_user.profile_completed = True
     db.commit()
-
     return {"message": "已完成"}
 
 
-@router.delete("/{user_id}")
-def delete_user(user_id: str, db: Session = Depends(get_db)):
+@router.delete("/me")
+def delete_user(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """注销用户账号，删除所有相关数据"""
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="用户不存在")
+    user_id = current_user.id
 
-    # 删除用户的所有回忆录
     db.query(Memoir).filter(Memoir.user_id == user_id).delete()
 
-    # 删除用户的所有对话消息
     conversations = db.query(Conversation).filter(Conversation.user_id == user_id).all()
     for conv in conversations:
         db.query(Message).filter(Message.conversation_id == conv.id).delete()
 
-    # 删除用户的所有对话
     db.query(Conversation).filter(Conversation.user_id == user_id).delete()
-
-    # 删除用户的开场白候选
     db.query(GreetingCandidate).filter(GreetingCandidate.user_id == user_id).delete()
 
-    # 删除用户
-    db.delete(user)
+    db.delete(current_user)
     db.commit()
 
     return {"message": "账号已注销"}

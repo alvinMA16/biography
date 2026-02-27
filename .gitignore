@@ -31,5 +31,11 @@ Thumbs.db
 tmp/
 temp/
 
+# PID files
+*.pid
+
+# Claude
+.claude/
+
 # Docker
 docker-compose.override.yml

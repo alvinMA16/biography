@@ -6,6 +6,13 @@ let currentPerspective = '第一人称';
 
 // 页面加载
 window.onload = async function() {
+    // 检查是否已登录
+    const token = storage.get('token');
+    if (!token) {
+        window.location.href = 'login.html';
+        return;
+    }
+
     const memoirId = new URLSearchParams(window.location.search).get('id');
 
     if (!memoirId) {

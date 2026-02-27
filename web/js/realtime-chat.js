@@ -37,6 +37,13 @@ const CHUNK_SIZE = 3200;          // 每次发送的音频块大小
 
 // 页面加载
 window.onload = async function() {
+    // 检查是否已登录
+    const token = storage.get('token');
+    if (!token) {
+        window.location.href = 'login.html';
+        return;
+    }
+
     conversationId = storage.get('currentConversationId');
 
     if (!conversationId) {
@@ -47,10 +54,9 @@ window.onload = async function() {
 
     // 检查是否是信息收集模式
     // 注意：如果有 profileJustCompleted 标记，说明信息收集刚完成，不要再进入收集模式
-    const userId = storage.get('userId');
-    if (userId && !storage.get('profileJustCompleted')) {
+    if (!storage.get('profileJustCompleted')) {
         try {
-            const profile = await api.user.getProfile(userId);
+            const profile = await api.user.getProfile();
             isProfileCollectionMode = !profile.profile_completed;
             if (isProfileCollectionMode) {
                 console.log('进入信息收集模式');
@@ -84,8 +90,8 @@ async function connectWebSocket() {
     const selectedRecorder = storage.get('selectedRecorder') || 'female';
     const recorderInfo = RECORDER_INFO[selectedRecorder] || RECORDER_INFO.female;
 
-    // 获取用户ID
-    const userId = storage.get('userId');
+    // 获取 token
+    const token = storage.get('token');
 
     // 获取选择的话题信息
     const selectedTopic = storage.get('selectedTopic');
@@ -96,12 +102,12 @@ async function connectWebSocket() {
     storage.remove('selectedTopicGreeting');
     storage.remove('selectedTopicContext');
 
-    // 构建 WebSocket URL，带上音色、记录师名字、对话ID和用户ID参数
+    // 构建 WebSocket URL，带上音色、记录师名字、对话ID和 token 参数
     const params = new URLSearchParams({
         speaker: recorderInfo.speaker,
         recorder_name: recorderInfo.name,
         conversation_id: conversationId,
-        user_id: userId
+        token: token,
     });
 
     // 如果有选择的话题，添加到参数中
@@ -117,7 +123,7 @@ async function connectWebSocket() {
 
     const wsUrl = `${wsProtocol}://${window.location.host}/api/realtime/dialog?${params.toString()}`;
 
-    console.log('连接 WebSocket:', wsUrl, '记录师:', recorderInfo.name, '用户:', userId, '开场白:', selectedGreeting ? '自定义' : '默认');
+    console.log('连接 WebSocket:', wsUrl, '记录师:', recorderInfo.name, '开场白:', selectedGreeting ? '自定义' : '默认');
 
     try {
         ws = new WebSocket(wsUrl);
@@ -583,8 +589,7 @@ async function endChat() {
             await showWelcomeModal();
         } else {
             // 正常对话模式：后台生成回忆录，直接跳转
-            const userId = storage.get('userId');
-            api.memoir.generateAsync(userId, conversationId);
+            api.memoir.generateAsync(conversationId);
             // 显示简短提示后跳转
             showToast('对话已保存，可在「我的回忆」中查看');
             setTimeout(() => {
@@ -601,14 +606,11 @@ async function endChat() {
 // 显示欢迎弹窗（信息收集完成后）
 async function showWelcomeModal() {
     // 直接调用后端标记 profile 完成，不依赖后台异步任务
-    const userId = storage.get('userId');
-    if (userId) {
-        try {
-            await api.user.completeProfile(userId);
-            console.log('已标记 profile 完成');
-        } catch (error) {
-            console.error('标记 profile 完成失败:', error);
-        }
+    try {
+        await api.user.completeProfile();
+        console.log('已标记 profile 完成');
+    } catch (error) {
+        console.error('标记 profile 完成失败:', error);
     }
 
     // 清除临时标记（因为后端已经同步更新了）

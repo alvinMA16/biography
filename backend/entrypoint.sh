@@ -3,14 +3,7 @@ set -e
 
 echo "Waiting for PostgreSQL..."
 for i in $(seq 1 60); do
-    if python -c "
-import psycopg2
-try:
-    psycopg2.connect('$DATABASE_URL')
-    exit(0)
-except:
-    exit(1)
-" 2>/dev/null; then
+    if python -c "import os, psycopg2; psycopg2.connect(os.environ['DATABASE_URL'])" 2>/dev/null; then
         echo "PostgreSQL is ready!"
         break
     fi

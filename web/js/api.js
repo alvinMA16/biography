@@ -6,15 +6,29 @@ const api = {
     // 通用请求方法
     async request(endpoint, options = {}) {
         const url = `${API_BASE_URL}${endpoint}`;
+        const token = storage.get('token');
+        const headers = {
+            'Content-Type': 'application/json',
+        };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
         const config = {
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers,
             ...options,
+            // 确保自定义 headers 与默认 headers 合并
+            headers: { ...headers, ...(options.headers || {}) },
         };
 
         try {
             const response = await fetch(url, config);
+            if (response.status === 401) {
+                // token 无效或过期，跳转登录页
+                storage.remove('token');
+                storage.remove('userId');
+                window.location.href = 'login.html';
+                return;
+            }
             if (!response.ok) {
                 const error = await response.json();
                 throw new Error(error.detail || '请求失败');
@@ -26,48 +40,51 @@ const api = {
         }
     },
 
-    // 用户相关
-    user: {
-        async create(nickname = null) {
-            return api.request('/user/create', {
+    // 认证相关
+    auth: {
+        async login(phone, password) {
+            return api.request('/auth/login', {
                 method: 'POST',
-                body: JSON.stringify({ nickname }),
+                body: JSON.stringify({ phone, password }),
             });
         },
+    },
 
-        async get(userId) {
-            return api.request(`/user/${userId}`);
+    // 用户相关
+    user: {
+        async get() {
+            return api.request('/user/me');
         },
 
-        async updateSettings(userId, settings) {
-            return api.request(`/user/${userId}/settings`, {
+        async updateSettings(settings) {
+            return api.request('/user/me/settings', {
                 method: 'PUT',
                 body: JSON.stringify(settings),
             });
         },
 
-        async getProfile(userId) {
-            return api.request(`/user/${userId}/profile`);
+        async getProfile() {
+            return api.request('/user/me/profile');
         },
 
-        async completeProfile(userId) {
-            return api.request(`/user/${userId}/complete-profile`, {
+        async completeProfile() {
+            return api.request('/user/me/complete-profile', {
                 method: 'POST',
             });
         },
 
-        async delete(userId) {
-            return api.request(`/user/${userId}`, {
+        async delete() {
+            return api.request('/user/me', {
                 method: 'DELETE',
             });
         },
 
-        async getEraMemories(userId) {
-            return api.request(`/user/${userId}/era-memories`);
+        async getEraMemories() {
+            return api.request('/user/me/era-memories');
         },
 
-        async regenerateEraMemories(userId) {
-            return api.request(`/user/${userId}/era-memories/regenerate`, {
+        async regenerateEraMemories() {
+            return api.request('/user/me/era-memories/regenerate', {
                 method: 'POST',
             });
         },
@@ -75,8 +92,8 @@ const api = {
 
     // 对话相关
     conversation: {
-        async start(userId) {
-            return api.request(`/conversation/start?user_id=${userId}`, {
+        async start() {
+            return api.request('/conversation/start', {
                 method: 'POST',
             });
         },
@@ -89,13 +106,25 @@ const api = {
         },
 
         async chatStream(conversationId, message, onChunk) {
+            const token = storage.get('token');
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
             const response = await fetch(`${API_BASE_URL}/conversation/${conversationId}/chat/stream`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers,
                 body: JSON.stringify({ message }),
             });
+
+            if (response.status === 401) {
+                storage.remove('token');
+                storage.remove('userId');
+                window.location.href = 'login.html';
+                return;
+            }
 
             if (!response.ok) {
                 throw new Error('请求失败');
@@ -143,12 +172,8 @@ const api = {
             return api.request(`/conversation/${conversationId}`);
         },
 
-        async list(userId) {
-            return api.request(`/conversation/user/${userId}/list`);
-        },
-
-        async get(conversationId) {
-            return api.request(`/conversation/${conversationId}`);
+        async list() {
+            return api.request('/conversation/list');
         },
     },
 
@@ -174,12 +199,12 @@ const api = {
 
     // 话题相关
     topic: {
-        async getOptions(userId) {
-            return api.request(`/topic/user/${userId}/options`);
+        async getOptions() {
+            return api.request('/topic/options');
         },
 
-        async refresh(userId) {
-            return api.request(`/topic/user/${userId}/refresh`, {
+        async refresh() {
+            return api.request('/topic/refresh', {
                 method: 'POST',
             });
         },
@@ -191,24 +216,29 @@ const api = {
 
     // 回忆录相关
     memoir: {
-        async generate(userId, conversationId, title = null, perspective = '第一人称') {
-            return api.request(`/memoir/generate?user_id=${userId}`, {
+        async generate(conversationId, title = null, perspective = '第一人称') {
+            return api.request('/memoir/generate', {
                 method: 'POST',
                 body: JSON.stringify({ conversation_id: conversationId, title, perspective }),
             });
         },
 
         // 异步生成回忆录（不等待完成）
-        generateAsync(userId, conversationId, title = null, perspective = '第一人称') {
-            fetch(`${API_BASE_URL}/memoir/generate-async?user_id=${userId}`, {
+        generateAsync(conversationId, title = null, perspective = '第一人称') {
+            const token = storage.get('token');
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            fetch(`${API_BASE_URL}/memoir/generate-async`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({ conversation_id: conversationId, title, perspective }),
             }).catch(err => console.error('异步生成回忆录失败:', err));
         },
 
-        async list(userId) {
-            return api.request(`/memoir/user/${userId}/list`);
+        async list() {
+            return api.request('/memoir/list');
         },
 
         async get(memoirId) {

@@ -4,6 +4,13 @@ let refreshTimer = null;
 
 // 页面加载
 window.onload = async function() {
+    // 检查是否已登录
+    const token = storage.get('token');
+    if (!token) {
+        window.location.href = 'login.html';
+        return;
+    }
+
     await loadMemoirs();
 };
 
@@ -16,15 +23,8 @@ window.onbeforeunload = function() {
 
 // 加载回忆录列表
 async function loadMemoirs() {
-    const userId = storage.get('userId');
-
-    if (!userId) {
-        showEmptyState();
-        return;
-    }
-
     try {
-        const memoirs = await api.memoir.list(userId);
+        const memoirs = await api.memoir.list();
 
         if (memoirs.length === 0) {
             showEmptyState();
