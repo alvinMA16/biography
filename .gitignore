@@ -30,3 +30,6 @@ Thumbs.db
 # 临时文件
 tmp/
 temp/
+
+# Docker
+docker-compose.override.yml

@@ -5,8 +5,9 @@ from app.config import settings
 from app.database import engine, Base
 from app.api import router
 
-# 创建数据库表
-Base.metadata.create_all(bind=engine)
+# 创建数据库表（仅 SQLite 模式，PostgreSQL 由 Alembic 管理）
+if "sqlite" in settings.database_url:
+    Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="回忆录 API",
