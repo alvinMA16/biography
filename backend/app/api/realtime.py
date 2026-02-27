@@ -187,6 +187,8 @@ async def realtime_dialog(websocket: WebSocket):
             mode=actual_mode,  # 传入模式
             era_memories=era_memories,  # 传入时代记忆
             user_nickname=user_nickname,  # 传入用户称呼
+            topic=custom_topic,  # 传入话题标题
+            chat_context=custom_context,  # 传入话题背景上下文
             on_audio=lambda data: asyncio.create_task(on_audio(data)),
             on_text=lambda t, c: asyncio.create_task(on_text(t, c)),
             on_event=lambda e, p: asyncio.create_task(on_event(e, p)),
@@ -237,27 +239,6 @@ async def realtime_dialog(websocket: WebSocket):
 
         # 发送开场白
         await client.say_hello(greeting)
-
-        # 如果有预生成的上下文，注入到对话中
-        if actual_mode != "profile_collection" and custom_context:
-            try:
-                await client.conversation_create(
-                    user_text=f"【我的相关背景】{custom_context}",
-                    assistant_text="好的，我了解了您的背景，咱们继续聊。"
-                )
-                print(f"[Realtime] 话题上下文已注入（{len(custom_context)}字符）")
-
-                # 发送 debug 消息给前端
-                try:
-                    await websocket.send_json({
-                        "type": "debug",
-                        "event": "context_injected",
-                        "message": f"已注入话题上下文（{len(custom_context)}字符）"
-                    })
-                except:
-                    pass
-            except Exception as e:
-                print(f"[Realtime] 注入上下文失败: {e}")
 
         # 处理前端消息
         while True:
