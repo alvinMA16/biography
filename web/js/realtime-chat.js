@@ -78,7 +78,7 @@ const RECORDER_INFO = {
 };
 
 async function connectWebSocket() {
-    const hostname = window.location.hostname || 'localhost';
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
 
     // 获取选中的记录师
     const selectedRecorder = storage.get('selectedRecorder') || 'female';
@@ -115,7 +115,7 @@ async function connectWebSocket() {
         params.set('context', selectedContext);
     }
 
-    const wsUrl = `ws://${hostname}:8001/api/realtime/dialog?${params.toString()}`;
+    const wsUrl = `${wsProtocol}://${window.location.host}/api/realtime/dialog?${params.toString()}`;
 
     console.log('连接 WebSocket:', wsUrl, '记录师:', recorderInfo.name, '用户:', userId, '开场白:', selectedGreeting ? '自定义' : '默认');
 

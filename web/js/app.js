@@ -351,8 +351,8 @@ async function playRecorderGreeting(gender) {
     stopPreviewAudio();
 
     const recorder = RECORDERS[gender];
-    const hostname = window.location.hostname || 'localhost';
-    const wsUrl = `ws://${hostname}:8001/api/realtime/preview?speaker=${encodeURIComponent(recorder.speaker)}&text=${encodeURIComponent(recorder.greeting)}`;
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const wsUrl = `${wsProtocol}://${window.location.host}/api/realtime/preview?speaker=${encodeURIComponent(recorder.speaker)}&text=${encodeURIComponent(recorder.greeting)}`;
 
     try {
         previewAudioContext = new AudioContext({ sampleRate: 24000 });
