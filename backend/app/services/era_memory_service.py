@@ -1,34 +1,79 @@
 """
 时代记忆服务
 提供预生成时代记忆的查询和截取功能
+首次访问时从数据库加载全量数据到内存，后续查询走缓存
 """
+import datetime
+import logging
+import uuid
+from dataclasses import dataclass
 from typing import List, Optional
+
 from sqlalchemy.orm import Session
 
 from app.models import EraMemoryPreset
 from app.config import settings
 
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class EraMemoryItem:
+    """内存中的时代记忆条目（脱离 SQLAlchemy session）"""
+    id: str
+    start_year: int
+    end_year: int
+    category: Optional[str]
+    content: str
+
 
 class EraMemoryService:
-    """时代记忆服务"""
+    """时代记忆服务（带内存缓存）"""
 
-    def get_all(self, db: Session) -> List[EraMemoryPreset]:
+    def __init__(self):
+        self._cache: Optional[List[EraMemoryItem]] = None
+
+    def _ensure_cache(self, db: Session) -> List[EraMemoryItem]:
+        """首次调用时从数据库加载全量数据到内存"""
+        if self._cache is None:
+            rows = db.query(EraMemoryPreset).order_by(EraMemoryPreset.start_year).all()
+            self._cache = [
+                EraMemoryItem(
+                    id=r.id,
+                    start_year=r.start_year,
+                    end_year=r.end_year,
+                    category=r.category,
+                    content=r.content,
+                )
+                for r in rows
+            ]
+            logger.info(f"时代记忆缓存已加载，共 {len(self._cache)} 条")
+        return self._cache
+
+    def _invalidate_cache(self):
+        """写操作后清空缓存，下次查询时重新加载"""
+        self._cache = None
+
+    def get_all(self, db: Session) -> List[EraMemoryItem]:
         """获取所有预生成的时代记忆"""
-        return db.query(EraMemoryPreset).order_by(EraMemoryPreset.start_year).all()
+        return self._ensure_cache(db)
 
-    def get_by_id(self, db: Session, memory_id: str) -> Optional[EraMemoryPreset]:
+    def get_by_id(self, db: Session, memory_id: str) -> Optional[EraMemoryItem]:
         """根据 ID 获取时代记忆"""
-        return db.query(EraMemoryPreset).filter(EraMemoryPreset.id == memory_id).first()
+        for m in self._ensure_cache(db):
+            if m.id == memory_id:
+                return m
+        return None
 
-    def get_for_year_range(self, db: Session, year_start: int, year_end: int) -> List[EraMemoryPreset]:
+    def get_for_year_range(self, db: Session, year_start: int, year_end: int) -> List[EraMemoryItem]:
         """
         根据年份区间获取时代记忆
         返回所有与 [year_start, year_end] 有交集的事件
         """
-        return db.query(EraMemoryPreset).filter(
-            EraMemoryPreset.start_year <= year_end,
-            EraMemoryPreset.end_year >= year_start
-        ).order_by(EraMemoryPreset.start_year).all()
+        return [
+            m for m in self._ensure_cache(db)
+            if m.start_year <= year_end and m.end_year >= year_start
+        ]
 
     def get_for_topic(
         self,
@@ -48,17 +93,14 @@ class EraMemoryService:
         Returns:
             拼接好的时代记忆文本，可直接注入 prompt
         """
-        # 计算年份区间
         year_start = birth_year + age_start
         year_end = birth_year + age_end
 
-        # 查询时代记忆
         memories = self.get_for_year_range(db, year_start, year_end)
 
         if not memories:
             return ""
 
-        # 拼接成文本
         lines = []
         for m in memories:
             if m.start_year == m.end_year:
@@ -78,7 +120,6 @@ class EraMemoryService:
         Returns:
             拼接好的时代记忆文本
         """
-        import datetime
         current_year = datetime.datetime.now().year
         year_start = birth_year + 6  # 从童年开始
         year_end = current_year
@@ -110,7 +151,6 @@ class EraMemoryService:
         category: Optional[str] = None
     ) -> EraMemoryPreset:
         """创建时代记忆条目"""
-        import uuid
         memory = EraMemoryPreset(
             id=str(uuid.uuid4()),
             start_year=start_year,
@@ -121,6 +161,7 @@ class EraMemoryService:
         db.add(memory)
         db.commit()
         db.refresh(memory)
+        self._invalidate_cache()
         return memory
 
     def update(
@@ -133,7 +174,7 @@ class EraMemoryService:
         category: Optional[str] = None
     ) -> Optional[EraMemoryPreset]:
         """更新时代记忆条目"""
-        memory = self.get_by_id(db, memory_id)
+        memory = db.query(EraMemoryPreset).filter(EraMemoryPreset.id == memory_id).first()
         if not memory:
             return None
 
@@ -148,16 +189,18 @@ class EraMemoryService:
 
         db.commit()
         db.refresh(memory)
+        self._invalidate_cache()
         return memory
 
     def delete(self, db: Session, memory_id: str) -> bool:
         """删除时代记忆条目"""
-        memory = self.get_by_id(db, memory_id)
+        memory = db.query(EraMemoryPreset).filter(EraMemoryPreset.id == memory_id).first()
         if not memory:
             return False
 
         db.delete(memory)
         db.commit()
+        self._invalidate_cache()
         return True
 
 
