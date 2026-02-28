@@ -88,8 +88,14 @@ async function tryResumeAndSendReady() {
     // 尝试恢复
     try {
         await playbackContext.resume();
-        console.log('AudioContext 已自动恢复');
-        sendReady();
+        // 关键：检查状态是否真的变成 running（手机浏览器可能 resume 成功但状态仍是 suspended）
+        if (playbackContext.state === 'running') {
+            console.log('AudioContext 已自动恢复');
+            sendReady();
+        } else {
+            console.log('AudioContext resume 后仍是 suspended，等待用户交互');
+            waitForUserInteraction();
+        }
     } catch (e) {
         console.log('AudioContext 自动恢复失败，等待用户交互');
         // 监听用户任意交互
