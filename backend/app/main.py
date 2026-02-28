@@ -1,8 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.config import settings
-from app.database import engine, Base
+from app.database import engine, Base, SessionLocal
 from app.api import router
 
 # 创建数据库表（仅 SQLite 模式，PostgreSQL 由 Alembic 管理）
@@ -18,7 +19,11 @@ app = FastAPI(
 # 配置跨域（允许前端访问）
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 开发环境允许所有来源
+    allow_origins=[
+        "https://storyofme.cn",
+        "https://www.storyofme.cn",
+        "http://localhost:8080",  # 本地开发
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -35,7 +40,13 @@ def root():
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy"}
+    try:
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        db.close()
+        return {"status": "healthy"}
+    except Exception:
+        raise HTTPException(status_code=503, detail="database unavailable")
 
 
 if __name__ == "__main__":
