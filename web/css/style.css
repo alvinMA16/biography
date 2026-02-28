@@ -1201,3 +1201,523 @@ body {
 .era-memories-actions .btn {
     min-width: 120px;
 }
+
+/* ============ Admin 页面 ============ */
+
+.admin-page {
+    min-height: 100vh;
+    background: var(--color-bg);
+    font-family: var(--font-sans);
+    font-size: 15px;
+}
+
+/* 认证区域 */
+.admin-auth {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 2em;
+}
+
+.admin-auth-card {
+    text-align: center;
+    background: white;
+    padding: 3em 2.5em;
+    border-radius: 16px;
+    box-shadow: 0 2px 24px rgba(0,0,0,0.06);
+    max-width: 420px;
+    width: 100%;
+}
+
+.admin-auth-card h1 {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-size: 1.5em;
+    letter-spacing: 0.15em;
+    margin-bottom: 0.5em;
+    color: var(--color-text);
+}
+
+.admin-auth-subtitle {
+    font-size: 0.88em;
+    color: var(--color-text-light);
+    margin-bottom: 2em;
+}
+
+.admin-auth-form {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+/* 输入框 — 圆角风格 */
+.admin-input {
+    padding: 12px 16px;
+    font-size: 0.95em;
+    font-family: var(--font-sans);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-bg-dark);
+    color: var(--color-text);
+    outline: none;
+    transition: border-color 0.2s;
+    width: 260px;
+}
+
+.admin-input:focus {
+    border-color: var(--color-accent);
+}
+
+.admin-input::placeholder {
+    color: #aaa;
+}
+
+/* ---- 侧边栏 + 内容布局 ---- */
+.admin-layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+.admin-sidebar {
+    width: 220px;
+    background: white;
+    border-right: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+.admin-sidebar-header {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.admin-sidebar-header h2 {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-size: 1.2em;
+    letter-spacing: 0.15em;
+    color: var(--color-text);
+    margin-bottom: 2px;
+}
+
+.admin-sidebar-header span {
+    font-size: 0.78em;
+    color: var(--color-text-light);
+}
+
+.admin-sidebar-nav {
+    flex: 1;
+    padding: 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.admin-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 14px;
+    font-family: var(--font-sans);
+    font-size: 0.9em;
+    color: var(--color-text-light);
+    background: none;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: left;
+}
+
+.admin-nav-item svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+.admin-nav-item:hover {
+    background: var(--color-bg-dark);
+    color: var(--color-text);
+}
+
+.admin-nav-item.active {
+    background: rgba(139, 69, 19, 0.08);
+    color: var(--color-accent);
+    font-weight: 500;
+}
+
+.admin-sidebar-footer {
+    padding: 10px;
+    border-top: 1px solid var(--color-border);
+}
+
+.admin-logout-btn {
+    color: var(--color-text-light) !important;
+}
+
+.admin-logout-btn:hover {
+    background: #fdf2f2 !important;
+    color: #c0392b !important;
+}
+
+/* ---- 主内容区域 ---- */
+.admin-main-area {
+    flex: 1;
+    min-width: 0;
+    background: var(--color-bg);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Tab 面板 */
+.admin-tab-panel {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+}
+
+.admin-tab-panel.active {
+    display: flex;
+}
+
+.admin-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--color-border);
+    background: white;
+}
+
+.admin-panel-header h1 {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-size: 1.15em;
+    letter-spacing: 0.1em;
+}
+
+.admin-panel-content {
+    padding: 24px 32px;
+    overflow-x: auto;
+    flex: 1;
+}
+
+/* 卡片容器 */
+.admin-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 12px rgba(0,0,0,0.05);
+    overflow: hidden;
+}
+
+/* 表格 */
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88em;
+}
+
+.admin-table th,
+.admin-table td {
+    padding: 14px 18px;
+    text-align: left;
+    border-bottom: 1px solid #f0ede8;
+    white-space: nowrap;
+}
+
+.admin-table th {
+    font-weight: 500;
+    color: var(--color-text-light);
+    font-size: 0.82em;
+    letter-spacing: 0.05em;
+    background: var(--color-bg-dark);
+}
+
+.admin-table tbody tr {
+    transition: background 0.15s;
+}
+
+.admin-table tbody tr:hover {
+    background: #faf8f5;
+}
+
+.admin-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.admin-table-empty {
+    text-align: center;
+    color: var(--color-text-light);
+    padding: 48px 20px !important;
+}
+
+.text-muted {
+    color: #ccc;
+}
+
+/* 操作列 */
+.admin-actions-cell {
+    display: flex;
+    gap: 6px;
+}
+
+/* 状态徽章 */
+.admin-badge {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 12px;
+    font-size: 0.82em;
+    font-weight: 500;
+}
+
+.badge-yes {
+    background: #d4edda;
+    color: #155724;
+}
+
+.badge-no {
+    background: #f0f0f0;
+    color: #999;
+}
+
+/* 表格行按钮 */
+.admin-btn {
+    font-family: var(--font-sans);
+    cursor: pointer;
+    border: 1px solid var(--color-border);
+    background: white;
+    color: var(--color-text);
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.admin-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+.admin-btn-sm {
+    padding: 5px 14px;
+    font-size: 0.82em;
+}
+
+.admin-btn-danger {
+    color: #c0392b;
+    border-color: #e8d4d4;
+}
+
+.admin-btn-danger:hover {
+    color: #a93226;
+    border-color: #c0392b;
+    background: #fdf2f2;
+}
+
+/* 弹窗表单 */
+.admin-modal-form {
+    max-width: 520px;
+}
+
+.admin-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.admin-form-full {
+    grid-column: 1 / -1;
+}
+
+.admin-form-divider {
+    grid-column: 1 / -1;
+    height: 1px;
+    background: var(--color-border);
+    margin: 4px 0;
+}
+
+/* 表单组 */
+.admin-form-group {
+    margin-bottom: 0;
+}
+
+.admin-form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.85em;
+    color: var(--color-text-light);
+    font-family: var(--font-sans);
+}
+
+.admin-form-group label .required {
+    color: #c0392b;
+}
+
+.admin-form-group .admin-input {
+    width: 100%;
+}
+
+/* 弹窗底部按钮 — 统一尺寸 */
+.admin-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border);
+}
+
+.admin-modal-btn {
+    padding: 10px 28px;
+    font-size: 0.9em;
+    font-family: var(--font-sans);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid var(--color-border);
+    letter-spacing: 0.05em;
+}
+
+.admin-modal-btn-cancel {
+    background: transparent;
+    color: var(--color-text-light);
+}
+
+.admin-modal-btn-cancel:hover {
+    border-color: var(--color-text-light);
+    color: var(--color-text);
+}
+
+.admin-modal-btn-confirm {
+    background: var(--color-text);
+    color: var(--color-bg);
+    border-color: var(--color-text);
+}
+
+.admin-modal-btn-confirm:hover {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+}
+
+/* 密码展示 */
+.admin-password-hint {
+    margin-bottom: 16px;
+    color: var(--color-text-light);
+    font-family: var(--font-sans);
+    font-size: 0.89em;
+}
+
+.admin-password-display {
+    padding: 16px 24px;
+    background: var(--color-bg-dark);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    display: inline-block;
+}
+
+.admin-password-display code {
+    font-size: 1.4em;
+    font-family: "SF Mono", "Fira Code", monospace;
+    letter-spacing: 0.15em;
+    color: var(--color-accent);
+}
+
+/* Admin 页面按钮覆盖 */
+.admin-page .btn-primary {
+    border-radius: 8px;
+}
+
+.admin-page .btn-secondary {
+    border-radius: 8px;
+}
+
+/* 操作日志 */
+.admin-log-action {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-size: 0.85em;
+    font-weight: 500;
+}
+
+.admin-log-create_user {
+    background: #d4edda;
+    color: #155724;
+}
+
+.admin-log-edit_user {
+    background: #cce5ff;
+    color: #004085;
+}
+
+.admin-log-reset_password {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.admin-log-detail {
+    color: var(--color-text-light);
+    font-size: 0.9em;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .admin-layout {
+        flex-direction: column;
+    }
+
+    .admin-sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    .admin-sidebar-header {
+        display: none;
+    }
+
+    .admin-sidebar-nav {
+        flex-direction: row;
+        padding: 8px 10px;
+        gap: 4px;
+    }
+
+    .admin-sidebar-footer {
+        display: none;
+    }
+
+    .admin-nav-item {
+        justify-content: center;
+        flex: 1;
+        padding: 8px 10px;
+        font-size: 0.85em;
+    }
+
+    .admin-panel-content {
+        padding: 16px 12px;
+    }
+
+    .admin-panel-header {
+        padding: 16px 20px;
+    }
+}
+
+@media (max-width: 600px) {
+    .admin-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-modal-form {
+        max-width: 100%;
+        margin: 0 8px;
+    }
+
+    .admin-auth-form {
+        flex-direction: column;
+        align-items: center;
+    }
+}

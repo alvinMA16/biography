@@ -1,11 +1,27 @@
-"""认证相关路由：登录、管理员创建用户"""
+"""认证相关路由：登录、管理员创建用户、用户管理"""
+import secrets
+import string
+from datetime import datetime
+from typing import Optional, List
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import User
+from app.models.conversation import Conversation
+from app.models.memoir import Memoir
+from app.models.audit_log import AuditLog
 from app.auth import hash_password, verify_password, create_token, verify_admin_key
+
+
+def _log_action(db: Session, action: str, target_user_id: str = None, target_label: str = None, detail: str = None):
+    """记录管理员操作日志"""
+    log = AuditLog(action=action, target_user_id=target_user_id, target_label=target_label, detail=detail)
+    db.add(log)
+    db.commit()
 
 router = APIRouter()
 
@@ -50,6 +66,10 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
 class AdminCreateUserRequest(BaseModel):
     phone: str
     password: str
+    nickname: Optional[str] = None
+    birth_year: Optional[int] = None
+    hometown: Optional[str] = None
+    main_city: Optional[str] = None
 
 
 class AdminCreateUserResponse(BaseModel):
@@ -75,9 +95,183 @@ def admin_create_user(
     user = User(
         phone=req.phone,
         password_hash=hash_password(req.password),
+        nickname=req.nickname,
+        birth_year=req.birth_year,
+        hometown=req.hometown,
+        main_city=req.main_city,
     )
+    # 如果基础信息齐全，自动标记 profile_completed
+    if req.nickname and req.birth_year and req.hometown:
+        user.profile_completed = True
+
     db.add(user)
     db.commit()
     db.refresh(user)
 
+    _log_action(db, "create_user", user.id, user.phone,
+                f"创建用户 {user.phone}" + (f"（{user.nickname}）" if user.nickname else ""))
+
     return AdminCreateUserResponse(user_id=user.id, phone=user.phone)
+
+
+# ========== 管理员：用户列表 ==========
+
+class AdminUserItem(BaseModel):
+    id: str
+    phone: Optional[str] = None
+    nickname: Optional[str] = None
+    birth_year: Optional[int] = None
+    hometown: Optional[str] = None
+    main_city: Optional[str] = None
+    profile_completed: bool = False
+    created_at: Optional[datetime] = None
+    conversation_count: int = 0
+    memoir_count: int = 0
+
+
+@admin_router.get("/users", response_model=List[AdminUserItem])
+def admin_list_users(
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin_key),
+):
+    """管理员获取所有用户列表"""
+    users = db.query(User).order_by(User.created_at.desc()).all()
+
+    # 批量查询对话和回忆录计数
+    conv_counts = dict(
+        db.query(Conversation.user_id, func.count(Conversation.id))
+        .group_by(Conversation.user_id)
+        .all()
+    )
+    memoir_counts = dict(
+        db.query(Memoir.user_id, func.count(Memoir.id))
+        .group_by(Memoir.user_id)
+        .all()
+    )
+
+    return [
+        AdminUserItem(
+            id=u.id,
+            phone=u.phone,
+            nickname=u.nickname,
+            birth_year=u.birth_year,
+            hometown=u.hometown,
+            main_city=u.main_city,
+            profile_completed=u.profile_completed or False,
+            created_at=u.created_at,
+            conversation_count=conv_counts.get(u.id, 0),
+            memoir_count=memoir_counts.get(u.id, 0),
+        )
+        for u in users
+    ]
+
+
+# ========== 管理员：编辑用户 ==========
+
+class AdminUpdateUserRequest(BaseModel):
+    nickname: Optional[str] = None
+    birth_year: Optional[int] = None
+    hometown: Optional[str] = None
+    main_city: Optional[str] = None
+
+
+@admin_router.put("/user/{user_id}")
+def admin_update_user(
+    user_id: str,
+    req: AdminUpdateUserRequest,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin_key),
+):
+    """管理员编辑用户基础信息"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    if req.nickname is not None:
+        user.nickname = req.nickname
+    if req.birth_year is not None:
+        user.birth_year = req.birth_year
+    if req.hometown is not None:
+        user.hometown = req.hometown
+    if req.main_city is not None:
+        user.main_city = req.main_city
+
+    # 自动判断 profile_completed
+    if user.nickname and user.birth_year and user.hometown:
+        user.profile_completed = True
+
+    db.commit()
+    db.refresh(user)
+
+    _log_action(db, "edit_user", user.id, user.phone or user.nickname,
+                f"编辑用户信息：{user.phone or user.nickname}")
+
+    return {
+        "id": user.id,
+        "nickname": user.nickname,
+        "birth_year": user.birth_year,
+        "hometown": user.hometown,
+        "main_city": user.main_city,
+        "profile_completed": user.profile_completed or False,
+    }
+
+
+# ========== 管理员：重置密码 ==========
+
+class ResetPasswordResponse(BaseModel):
+    user_id: str
+    new_password: str
+
+
+@admin_router.post("/user/{user_id}/reset-password", response_model=ResetPasswordResponse)
+def admin_reset_password(
+    user_id: str,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin_key),
+):
+    """管理员重置用户密码，返回随机新密码"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    # 生成 8 位随机密码
+    alphabet = string.ascii_letters + string.digits
+    new_password = ''.join(secrets.choice(alphabet) for _ in range(8))
+
+    user.password_hash = hash_password(new_password)
+    db.commit()
+
+    _log_action(db, "reset_password", user.id, user.phone or user.nickname,
+                f"重置密码：{user.phone or user.nickname}")
+
+    return ResetPasswordResponse(user_id=user.id, new_password=new_password)
+
+
+# ========== 管理员：操作日志 ==========
+
+class AuditLogItem(BaseModel):
+    id: str
+    action: str
+    target_label: Optional[str] = None
+    detail: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+
+@admin_router.get("/logs", response_model=List[AuditLogItem])
+def admin_list_logs(
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin_key),
+):
+    """管理员获取操作日志"""
+    logs = db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit).all()
+    return [
+        AuditLogItem(
+            id=log.id,
+            action=log.action,
+            target_label=log.target_label,
+            detail=log.detail,
+            created_at=log.created_at,
+        )
+        for log in logs
+    ]

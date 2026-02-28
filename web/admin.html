@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理后台 - 回忆录</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="admin-page">
+        <!-- 认证区域 -->
+        <div id="authSection" class="admin-auth">
+            <div class="admin-auth-card">
+                <h1>回忆录 · 管理后台</h1>
+                <p class="admin-auth-subtitle">请输入管理密钥以继续</p>
+                <div class="admin-auth-form">
+                    <input type="password" id="adminKeyInput" placeholder="Admin Key" class="admin-input">
+                    <button onclick="verifyKey()" class="btn btn-primary">验证</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主内容区：侧边栏 + 内容 -->
+        <div id="mainSection" class="admin-layout" style="display:none;">
+            <!-- 侧边栏 -->
+            <aside class="admin-sidebar">
+                <div class="admin-sidebar-header">
+                    <h2>回忆录</h2>
+                    <span>管理后台</span>
+                </div>
+                <nav class="admin-sidebar-nav">
+                    <button class="admin-nav-item active" data-tab="users" onclick="switchTab('users')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                        用户管理
+                    </button>
+                    <button class="admin-nav-item" data-tab="logs" onclick="switchTab('logs')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        操作日志
+                    </button>
+                </nav>
+                <div class="admin-sidebar-footer">
+                    <button class="admin-nav-item admin-logout-btn" onclick="logout()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                        退出登录
+                    </button>
+                </div>
+            </aside>
+
+            <!-- 内容区 -->
+            <main class="admin-main-area">
+                <!-- 用户管理 Tab -->
+                <div id="tabUsers" class="admin-tab-panel active">
+                    <header class="admin-panel-header">
+                        <h1>用户管理</h1>
+                        <button class="btn btn-primary" onclick="showCreateModal()">新建用户</button>
+                    </header>
+                    <div class="admin-panel-content">
+                        <div class="admin-card">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>手机号</th>
+                                        <th>昵称</th>
+                                        <th>出生年份</th>
+                                        <th>家乡</th>
+                                        <th>常住城市</th>
+                                        <th>资料状态</th>
+                                        <th>对话/回忆</th>
+                                        <th>创建时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="userTableBody">
+                                    <tr><td colspan="9" class="admin-table-empty">加载中...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 操作日志 Tab -->
+                <div id="tabLogs" class="admin-tab-panel">
+                    <header class="admin-panel-header">
+                        <h1>操作日志</h1>
+                    </header>
+                    <div class="admin-panel-content">
+                        <div class="admin-card">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>时间</th>
+                                        <th>操作</th>
+                                        <th>对象</th>
+                                        <th>详情</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="logTableBody">
+                                    <tr><td colspan="4" class="admin-table-empty">加载中...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- 创建用户弹窗 -->
+    <div class="modal" id="createModal" style="display:none;" onclick="if(event.target===this)closeCreateModal()">
+        <div class="modal-content admin-modal-form">
+            <div class="modal-header">
+                <h2>新建用户</h2>
+                <button class="btn-close" onclick="closeCreateModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="admin-form-grid">
+                    <div class="admin-form-group admin-form-full">
+                        <label>手机号 <span class="required">*</span></label>
+                        <input type="text" id="createPhone" class="admin-input" placeholder="请输入手机号">
+                    </div>
+                    <div class="admin-form-group admin-form-full">
+                        <label>密码 <span class="required">*</span></label>
+                        <input type="text" id="createPassword" class="admin-input" placeholder="请输入密码">
+                    </div>
+                    <div class="admin-form-divider"></div>
+                    <div class="admin-form-group">
+                        <label>姓名</label>
+                        <input type="text" id="createNickname" class="admin-input" placeholder="老人姓名">
+                    </div>
+                    <div class="admin-form-group">
+                        <label>出生年份</label>
+                        <input type="number" id="createBirthYear" class="admin-input" placeholder="如 1950" min="1900" max="2000">
+                    </div>
+                    <div class="admin-form-group">
+                        <label>家乡</label>
+                        <input type="text" id="createHometown" class="admin-input" placeholder="如 湖南长沙">
+                    </div>
+                    <div class="admin-form-group">
+                        <label>常住城市</label>
+                        <input type="text" id="createMainCity" class="admin-input" placeholder="如 北京">
+                    </div>
+                </div>
+                <div class="admin-modal-footer">
+                    <button class="admin-modal-btn admin-modal-btn-cancel" onclick="closeCreateModal()">取消</button>
+                    <button class="admin-modal-btn admin-modal-btn-confirm" onclick="createUser()">创建</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑用户弹窗 -->
+    <div class="modal" id="editModal" style="display:none;" onclick="if(event.target===this)closeEditModal()">
+        <div class="modal-content admin-modal-form">
+            <div class="modal-header">
+                <h2>编辑用户</h2>
+                <button class="btn-close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editUserId">
+                <div class="admin-form-grid">
+                    <div class="admin-form-group">
+                        <label>姓名</label>
+                        <input type="text" id="editNickname" class="admin-input" placeholder="老人姓名">
+                    </div>
+                    <div class="admin-form-group">
+                        <label>出生年份</label>
+                        <input type="number" id="editBirthYear" class="admin-input" placeholder="如 1950" min="1900" max="2000">
+                    </div>
+                    <div class="admin-form-group">
+                        <label>家乡</label>
+                        <input type="text" id="editHometown" class="admin-input" placeholder="如 湖南长沙">
+                    </div>
+                    <div class="admin-form-group">
+                        <label>常住城市</label>
+                        <input type="text" id="editMainCity" class="admin-input" placeholder="如 北京">
+                    </div>
+                </div>
+                <div class="admin-modal-footer">
+                    <button class="admin-modal-btn admin-modal-btn-cancel" onclick="closeEditModal()">取消</button>
+                    <button class="admin-modal-btn admin-modal-btn-confirm" onclick="saveEdit()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新密码展示弹窗 -->
+    <div class="modal" id="passwordModal" style="display:none;" onclick="if(event.target===this)closePasswordModal()">
+        <div class="modal-content" style="max-width:380px;">
+            <div class="modal-header">
+                <h2>密码已重置</h2>
+                <button class="btn-close" onclick="closePasswordModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="text-align:center;">
+                <p class="admin-password-hint">新密码如下，请妥善保管：</p>
+                <div class="admin-password-display">
+                    <code id="newPasswordText"></code>
+                </div>
+                <button id="copyBtn" class="btn btn-secondary" onclick="copyPassword()" style="margin-top:16px;">复制</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/admin.js"></script>
+</body>
+</html>
