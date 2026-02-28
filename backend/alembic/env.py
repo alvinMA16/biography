@@ -12,9 +12,10 @@ from app.config import settings
 from app.database import Base
 
 # Import all models so Alembic can detect them
-from app.models.user import User, TopicCandidate, GreetingCandidate  # noqa: F401
+from app.models.user import User, TopicCandidate, EraMemoryPreset  # noqa: F401
 from app.models.conversation import Conversation, Message  # noqa: F401
 from app.models.memoir import Memoir  # noqa: F401
+from app.models.audit_log import AuditLog  # noqa: F401
 
 config = context.config
 

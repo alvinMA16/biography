@@ -11,8 +11,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db, SessionLocal
-from app.models import User
-from app.models.conversation import Conversation
+from app.models import User, TopicCandidate
+from app.models.conversation import Conversation, Message
 from app.models.memoir import Memoir
 from app.models.audit_log import AuditLog
 from app.auth import hash_password, verify_password, create_token, verify_admin_key
@@ -74,6 +74,8 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="该账号未设置密码")
     if not verify_password(req.password, user.password_hash):
         raise HTTPException(status_code=401, detail="手机号或密码错误")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="该账号已被禁用")
 
     token = create_token(user.id)
     return LoginResponse(
@@ -155,6 +157,7 @@ class AdminUserItem(BaseModel):
     hometown: Optional[str] = None
     main_city: Optional[str] = None
     profile_completed: bool = False
+    is_active: bool = True
     created_at: Optional[datetime] = None
     conversation_count: int = 0
     memoir_count: int = 0
@@ -189,6 +192,7 @@ def admin_list_users(
             hometown=u.hometown,
             main_city=u.main_city,
             profile_completed=u.profile_completed or False,
+            is_active=u.is_active if u.is_active is not None else True,
             created_at=u.created_at,
             conversation_count=conv_counts.get(u.id, 0),
             memoir_count=memoir_counts.get(u.id, 0),
@@ -283,6 +287,69 @@ def admin_reset_password(
                 f"重置密码：{user.phone or user.nickname}")
 
     return ResetPasswordResponse(user_id=user.id, new_password=new_password)
+
+
+# ========== 管理员：删除用户 ==========
+
+
+@admin_router.delete("/user/{user_id}")
+def admin_delete_user(
+    user_id: str,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin_key),
+):
+    """管理员硬删除用户及所有关联数据"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    user_label = user.phone or user.nickname or user_id
+
+    # 手动删除关联数据（Conversation/Memoir 没有配置 cascade delete）
+    # 1. 删除回忆录
+    db.query(Memoir).filter(Memoir.user_id == user_id).delete()
+    # 2. 删除消息（通过对话关联）
+    conv_ids = [c.id for c in db.query(Conversation.id).filter(Conversation.user_id == user_id).all()]
+    if conv_ids:
+        db.query(Message).filter(Message.conversation_id.in_(conv_ids)).delete(synchronize_session=False)
+    # 3. 删除对话
+    db.query(Conversation).filter(Conversation.user_id == user_id).delete()
+    # 4. 话题候选（有 cascade，但显式删除更安全）
+    db.query(TopicCandidate).filter(TopicCandidate.user_id == user_id).delete()
+    # 5. 删除用户
+    db.delete(user)
+    db.commit()
+
+    _log_action(db, "delete_user", user_id, user_label, f"删除用户 {user_label} 及所有关联数据")
+
+    logger.info("[Admin] 已删除用户 %s（%s）及所有关联数据", user_id, user_label)
+    return {"success": True}
+
+
+# ========== 管理员：禁用/启用用户 ==========
+
+
+@admin_router.post("/user/{user_id}/toggle-active")
+def admin_toggle_user_active(
+    user_id: str,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin_key),
+):
+    """管理员切换用户禁用/启用状态"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    user.is_active = not user.is_active
+    db.commit()
+    db.refresh(user)
+
+    status_text = "启用" if user.is_active else "禁用"
+    user_label = user.phone or user.nickname or user_id
+    _log_action(db, "toggle_user_active", user.id, user_label, f"{status_text}用户 {user_label}")
+
+    logger.info("[Admin] 已%s用户 %s（%s）", status_text, user_id, user_label)
+    return {"user_id": user.id, "is_active": user.is_active}
 
 
 # ========== 管理员：操作日志 ==========
