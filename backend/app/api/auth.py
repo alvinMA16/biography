@@ -1,20 +1,23 @@
 """认证相关路由：登录、管理员创建用户、用户管理"""
+import logging
 import secrets
 import string
 from datetime import datetime
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.database import get_db, SessionLocal
 from app.models import User
 from app.models.conversation import Conversation
 from app.models.memoir import Memoir
 from app.models.audit_log import AuditLog
 from app.auth import hash_password, verify_password, create_token, verify_admin_key
+
+logger = logging.getLogger(__name__)
 
 
 def _log_action(db: Session, action: str, target_user_id: str = None, target_label: str = None, detail: str = None):
@@ -22,6 +25,33 @@ def _log_action(db: Session, action: str, target_user_id: str = None, target_lab
     log = AuditLog(action=action, target_user_id=target_user_id, target_label=target_label, detail=detail)
     db.add(log)
     db.commit()
+
+def _run_post_profile_tasks(user_id: str):
+    """后台任务：为 profile 已完成的用户生成开场白和话题"""
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            logger.warning("[Admin] 后台任务：用户 %s 不存在，跳过", user_id)
+            return
+
+        from app.services.greeting_service import greeting_service
+        from app.services.topic_service import topic_service
+
+        logger.info("[Admin] 为用户 %s 生成初始开场白...", user_id)
+        greeting_service.generate_initial_greetings(db, user)
+
+        logger.info("[Admin] 为用户 %s 生成初始话题...", user_id)
+        topic_service.generate_topic_options(db, user)
+
+        logger.info("[Admin] 用户 %s 的开场白和话题生成完成", user_id)
+    except Exception as e:
+        logger.error("[Admin] 为用户 %s 生成开场白/话题失败: %s", user_id, e)
+        import traceback
+        traceback.print_exc()
+    finally:
+        db.close()
+
 
 router = APIRouter()
 
@@ -83,6 +113,7 @@ admin_router = APIRouter()
 @admin_router.post("/user", response_model=AdminCreateUserResponse)
 def admin_create_user(
     req: AdminCreateUserRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     _: None = Depends(verify_admin_key),
 ):
@@ -110,6 +141,10 @@ def admin_create_user(
 
     _log_action(db, "create_user", user.id, user.phone,
                 f"创建用户 {user.phone}" + (f"（{user.nickname}）" if user.nickname else ""))
+
+    # 如果 profile 已完成，后台生成开场白和话题
+    if user.profile_completed:
+        background_tasks.add_task(_run_post_profile_tasks, user.id)
 
     return AdminCreateUserResponse(user_id=user.id, phone=user.phone)
 
@@ -179,6 +214,7 @@ class AdminUpdateUserRequest(BaseModel):
 def admin_update_user(
     user_id: str,
     req: AdminUpdateUserRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     _: None = Depends(verify_admin_key),
 ):
@@ -186,6 +222,8 @@ def admin_update_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
+
+    was_profile_completed = user.profile_completed or False
 
     if req.nickname is not None:
         user.nickname = req.nickname
@@ -205,6 +243,10 @@ def admin_update_user(
 
     _log_action(db, "edit_user", user.id, user.phone or user.nickname,
                 f"编辑用户信息：{user.phone or user.nickname}")
+
+    # 如果 profile 从未完成变为完成，后台生成开场白和话题
+    if not was_profile_completed and user.profile_completed:
+        background_tasks.add_task(_run_post_profile_tasks, user.id)
 
     return {
         "id": user.id,
