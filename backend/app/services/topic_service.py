@@ -54,10 +54,10 @@ class TopicService:
         return db.query(TopicCandidate).filter(TopicCandidate.id == topic_id).first()
 
     def generate_topic_options(self, db: Session, user: User) -> List[Dict]:
-        """为用户生成话题选项（首次生成，包含 context）"""
+        """为用户首次生成话题选项"""
         from app.prompts import topic_options
 
-        print(f"[Topic] 为用户 {user.id} 生成话题选项")
+        print(f"[Topic] 为用户 {user.id} 首次生成话题选项")
 
         # 构建用户画像
         profile = self._build_user_profile(user)
@@ -69,17 +69,10 @@ class TopicService:
         if not era_memories:
             era_memories = user.era_memories or ""
 
-        # 获取用户的回忆录内容
-        memoirs_text = self._get_memoirs_summary(db, user.id)
-
-        # 生成话题（多生成一些作为池子）
-        pool_size = max(settings.topic_option_count * 2, 8)
-
         prompt = topic_options.build(
             user_profile=profile,
-            existing_memoirs=memoirs_text,
-            option_count=pool_size,
-            era_memories=era_memories
+            era_memories=era_memories,
+            option_count=settings.topic_option_count
         )
 
         try:
@@ -165,12 +158,6 @@ class TopicService:
             candidates = db.query(TopicCandidate).filter(
                 TopicCandidate.user_id == user_id
             ).all()
-
-            # 如果话题池为空，直接生成新的
-            if not candidates:
-                print(f"[Topic] 话题池为空，生成新话题")
-                self.generate_topic_options(db, user)
-                return
 
             # 构建审查所需的数据
             profile = self._build_user_profile(user)
@@ -279,26 +266,6 @@ class TopicService:
 
         return "\n".join(parts) if parts else "（暂无用户信息）"
 
-    def _get_memoirs_summary(self, db: Session, user_id: str) -> str:
-        """获取用户最近的回忆录摘要"""
-        memoirs = db.query(Memoir).filter(
-            Memoir.user_id == user_id,
-            Memoir.status == "completed"
-        ).order_by(Memoir.created_at.desc()).limit(settings.topic_memoir_count).all()
-
-        if not memoirs:
-            return ""
-
-        texts = []
-        for m in memoirs:
-            title = m.title or "无标题"
-            content = m.content or ""
-            if len(content) > 300:
-                content = content[:300] + "..."
-            texts.append(f"### {title}\n{content}")
-
-        return "\n\n".join(texts)
-
     def _get_all_memoirs_summary(self, db: Session, user_id: str) -> str:
         """获取用户所有回忆录的简要摘要（用于审查）"""
         memoirs = db.query(Memoir).filter(
@@ -328,49 +295,35 @@ class TopicService:
         return "\n".join(texts)
 
     def _get_default_options(self) -> List[Dict]:
-        """默认话题选项"""
+        """默认话题选项（LLM 生成失败时的兜底，只包含安全话题）"""
         return [
             {
-                "topic": "小时候的事",
-                "greeting": "今天想听您讲讲小时候的事。您还记得小时候住在哪里吗？那时候是什么样的？",
-                "context": "暂无相关背景信息",
+                "topic": "小时候的家",
+                "greeting": "今天想听您讲讲小时候住的地方。您小时候家里是什么样的？住在什么样的房子里？",
+                "context": "这是首次对话，注意建立信任，节奏放慢。引导用户回忆童年居住环境。",
                 "age_start": 0,
                 "age_end": 12
             },
             {
                 "topic": "上学那些年",
-                "greeting": "今天想听您聊聊上学的事。您还记得上学的时候，有什么印象特别深的事吗？",
-                "context": "暂无相关背景信息",
+                "greeting": "今天想听您聊聊上学的事。您还记得小时候的学校是什么样的吗？",
+                "context": "这是首次对话，注意建立信任，节奏放慢。引导用户回忆求学经历。",
                 "age_start": 6,
-                "age_end": 22
+                "age_end": 18
             },
             {
-                "topic": "工作经历",
-                "greeting": "今天想听您讲讲工作的事。您年轻的时候是做什么工作的？是怎么开始的？",
-                "context": "暂无相关背景信息",
-                "age_start": 18,
-                "age_end": 60
-            },
-            {
-                "topic": "认识爱人",
-                "greeting": "今天想听您聊聊感情的事。您还记得您是怎么认识您爱人的吗？",
-                "context": "暂无相关背景信息",
-                "age_start": 18,
-                "age_end": 35
-            },
-            {
-                "topic": "当父母的日子",
-                "greeting": "今天想听您聊聊孩子的事。您还记得孩子小时候的样子吗？",
-                "context": "暂无相关背景信息",
-                "age_start": 25,
-                "age_end": 50
-            },
-            {
-                "topic": "人生的转折",
-                "greeting": "今天想听您聊聊人生中的重要时刻。有没有哪件事改变了您的人生轨迹？",
-                "context": "暂无相关背景信息",
+                "topic": "家乡的年味",
+                "greeting": "今天想听您讲讲小时候过年的事。您小时候过年都有什么习俗？",
+                "context": "这是首次对话，注意建立信任，节奏放慢。引导用户回忆节日传统和家乡风俗。",
                 "age_start": 0,
-                "age_end": 80
+                "age_end": 18
+            },
+            {
+                "topic": "儿时的游戏",
+                "greeting": "今天想听您聊聊小时候玩的事。您小时候最喜欢玩什么？和谁一起玩？",
+                "context": "这是首次对话，注意建立信任，节奏放慢。引导用户回忆童年游戏和玩伴。",
+                "age_start": 0,
+                "age_end": 12
             },
         ]
 

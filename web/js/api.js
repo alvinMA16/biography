@@ -203,12 +203,6 @@ const api = {
             return api.request('/topic/options');
         },
 
-        async refresh() {
-            return api.request('/topic/refresh', {
-                method: 'POST',
-            });
-        },
-
         async get(topicId) {
             return api.request(`/topic/${topicId}`);
         },

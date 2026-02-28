@@ -34,8 +34,7 @@ class Settings(BaseSettings):
     service_region: str = "CN"  # 服务区域：CN=中国大陆（使用预生成时代记忆），其他=临时生成
 
     # 话题生成配置
-    topic_memoir_count: int = 10  # 生成话题时参考的最近回忆录数量
-    topic_option_count: int = 4   # 生成的话题选项数量
+    topic_option_count: int = 4   # 首次生成的话题选项数量
 
     class Config:
         env_file = ".env"
