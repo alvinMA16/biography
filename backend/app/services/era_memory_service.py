@@ -68,6 +68,35 @@ class EraMemoryService:
 
         return "\n".join(lines)
 
+    def get_for_user(self, db: Session, birth_year: int) -> str:
+        """
+        获取用户全部人生范围的时代记忆文本（用于话题生成等场景）
+
+        Args:
+            birth_year: 用户出生年份
+
+        Returns:
+            拼接好的时代记忆文本
+        """
+        import datetime
+        current_year = datetime.datetime.now().year
+        year_start = birth_year + 6  # 从童年开始
+        year_end = current_year
+
+        memories = self.get_for_year_range(db, year_start, year_end)
+
+        if not memories:
+            return ""
+
+        lines = []
+        for m in memories:
+            if m.start_year == m.end_year:
+                lines.append(f"- {m.content} ({m.start_year}年)")
+            else:
+                lines.append(f"- {m.content} ({m.start_year}-{m.end_year}年)")
+
+        return "\n".join(lines)
+
     def should_use_preset(self) -> bool:
         """判断是否应该使用预生成的时代记忆"""
         return settings.service_region == "CN"

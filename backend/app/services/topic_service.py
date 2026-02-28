@@ -12,6 +12,7 @@ from openai import OpenAI
 
 from app.config import settings
 from app.models import User, TopicCandidate, Memoir
+from app.services.era_memory_service import era_memory_service
 
 
 class TopicService:
@@ -61,8 +62,12 @@ class TopicService:
         # 构建用户画像
         profile = self._build_user_profile(user)
 
-        # 获取时代记忆
-        era_memories = user.era_memories or ""
+        # 获取时代记忆：优先用 preset 表，fallback 到用户个人时代记忆
+        era_memories = ""
+        if user.birth_year:
+            era_memories = era_memory_service.get_for_user(db, user.birth_year)
+        if not era_memories:
+            era_memories = user.era_memories or ""
 
         # 获取用户的回忆录内容
         memoirs_text = self._get_memoirs_summary(db, user.id)
@@ -169,7 +174,12 @@ class TopicService:
 
             # 构建审查所需的数据
             profile = self._build_user_profile(user)
-            era_memories = user.era_memories or ""
+            # 获取时代记忆：优先用 preset 表，fallback 到用户个人时代记忆
+            era_memories = ""
+            if user.birth_year:
+                era_memories = era_memory_service.get_for_user(db, user.birth_year)
+            if not era_memories:
+                era_memories = user.era_memories or ""
             all_memoirs = self._get_all_memoirs_summary(db, user_id)
             current_topics = self._format_current_topics(candidates)
 
