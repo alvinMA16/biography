@@ -237,9 +237,8 @@ async def realtime_dialog(websocket: WebSocket):
             finally:
                 db.close()
 
-        # 等待前端发送 ready 信号后再发送开场白
-        # 这是为了确保前端的 AudioContext 已准备好播放音频
-        greeting_sent = False
+        # 发送开场白
+        await client.say_hello(greeting)
 
         # 处理前端消息
         while True:
@@ -247,14 +246,7 @@ async def realtime_dialog(websocket: WebSocket):
                 message = await websocket.receive_json()
                 msg_type = message.get("type")
 
-                if msg_type == "ready":
-                    # 前端已准备好接收音频，发送开场白
-                    if not greeting_sent:
-                        print("[Realtime] 收到 ready 信号，发送开场白")
-                        await client.say_hello(greeting)
-                        greeting_sent = True
-
-                elif msg_type == "audio":
+                if msg_type == "audio":
                     # 接收音频数据并发送给豆包
                     audio_data = base64.b64decode(message.get("data", ""))
                     if audio_data:

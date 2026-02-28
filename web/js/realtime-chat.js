@@ -75,63 +75,30 @@ window.onload = async function() {
     await connectWebSocket();
 };
 
-// 尝试恢复 AudioContext 并发送 ready 信号
-async function tryResumeAndSendReady() {
-    if (!playbackContext) return;
-
-    if (playbackContext.state === 'running') {
-        // 已经在运行，直接发送 ready
-        sendReady();
-        return;
-    }
-
-    // 尝试恢复
+// 提前请求麦克风权限，触发用户交互以解锁 AudioContext
+async function requestMicrophoneEarly() {
     try {
-        await playbackContext.resume();
-        // 关键：检查状态是否真的变成 running（手机浏览器可能 resume 成功但状态仍是 suspended）
-        if (playbackContext.state === 'running') {
-            console.log('AudioContext 已自动恢复');
-            sendReady();
-        } else {
-            console.log('AudioContext resume 后仍是 suspended，等待用户交互');
-            waitForUserInteraction();
+        console.log('提前请求麦克风权限...');
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+                sampleRate: SAMPLE_RATE_INPUT,
+                channelCount: 1,
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            }
+        });
+        console.log('麦克风权限已获取');
+
+        // 用户点击了"允许"，这是用户交互，现在可以 resume AudioContext
+        if (playbackContext && playbackContext.state === 'suspended') {
+            await playbackContext.resume();
+            console.log('AudioContext 已恢复，状态:', playbackContext.state);
         }
     } catch (e) {
-        console.log('AudioContext 自动恢复失败，等待用户交互');
-        // 监听用户任意交互
-        waitForUserInteraction();
-    }
-}
-
-// 等待用户交互后恢复 AudioContext
-function waitForUserInteraction() {
-    const resumeAudio = async () => {
-        if (playbackContext && playbackContext.state === 'suspended') {
-            try {
-                await playbackContext.resume();
-                console.log('AudioContext 已通过用户交互恢复');
-                sendReady();
-            } catch (e) {
-                console.error('AudioContext 恢复失败:', e);
-            }
-        }
-        // 移除事件监听
-        document.removeEventListener('click', resumeAudio);
-        document.removeEventListener('touchstart', resumeAudio);
-    };
-
-    document.addEventListener('click', resumeAudio, { once: true });
-    document.addEventListener('touchstart', resumeAudio, { once: true });
-
-    // 提示用户
-    updateVoiceStatus('点击屏幕开始');
-}
-
-// 发送 ready 信号给后端
-function sendReady() {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'ready' }));
-        console.log('已发送 ready 信号');
+        console.error('麦克风权限请求失败:', e);
+        updateAIText('无法访问麦克风，请检查权限');
+        updateVoiceStatus('麦克风错误');
     }
 }
 
@@ -223,8 +190,8 @@ function handleServerMessage(message) {
                 isConnected = true;
                 updateAIText('');  // 清空，等待 AI 开始说话后再显示
                 updateVoiceStatus('请稍候');
-                // 尝试恢复 AudioContext 并发送 ready 信号
-                tryResumeAndSendReady();
+                // 提前请求麦克风权限，用户点击"允许"后 AudioContext 就能正常播放
+                requestMicrophoneEarly();
             } else if (message.status === 'error') {
                 showError(message.message);
             }
@@ -332,15 +299,18 @@ async function startRecording() {
     if (isRecording || !isConnected) return;
 
     try {
-        mediaStream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-                sampleRate: SAMPLE_RATE_INPUT,
-                channelCount: 1,
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true
-            }
-        });
+        // 如果还没有 mediaStream（提前请求失败或未执行），现在请求
+        if (!mediaStream) {
+            mediaStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    sampleRate: SAMPLE_RATE_INPUT,
+                    channelCount: 1,
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
+            });
+        }
 
         audioContext = new AudioContext({ sampleRate: SAMPLE_RATE_INPUT });
         const source = audioContext.createMediaStreamSource(mediaStream);
