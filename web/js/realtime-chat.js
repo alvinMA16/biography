@@ -124,14 +124,10 @@ async function connectWebSocket() {
     const selectedTopic = storage.get('selectedTopic');
     const selectedGreeting = storage.get('selectedTopicGreeting');
     const selectedContext = storage.get('selectedTopicContext');
-    const selectedAgeStart = storage.get('selectedTopicAgeStart');
-    const selectedAgeEnd = storage.get('selectedTopicAgeEnd');
     // 使用后清除，避免下次对话重复使用
     storage.remove('selectedTopic');
     storage.remove('selectedTopicGreeting');
     storage.remove('selectedTopicContext');
-    storage.remove('selectedTopicAgeStart');
-    storage.remove('selectedTopicAgeEnd');
 
     // 构建 WebSocket URL，带上音色、记录师名字、对话ID和 token 参数
     const params = new URLSearchParams({
@@ -150,13 +146,6 @@ async function connectWebSocket() {
     }
     if (selectedContext) {
         params.set('context', selectedContext);
-    }
-    // 添加年龄范围参数（用于截取时代记忆）
-    if (selectedAgeStart !== null && selectedAgeStart !== undefined) {
-        params.set('age_start', selectedAgeStart);
-    }
-    if (selectedAgeEnd !== null && selectedAgeEnd !== undefined) {
-        params.set('age_end', selectedAgeEnd);
     }
 
     const wsUrl = `${wsProtocol}://${window.location.host}/api/realtime/dialog?${params.toString()}`;

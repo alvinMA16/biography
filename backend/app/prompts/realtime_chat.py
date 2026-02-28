@@ -42,32 +42,26 @@ SYSTEM_ROLE = """你是一位人生故事记录师，正在帮助用户记录回
 
 SPEAKING_STYLE = "语速缓慢，语气平和沉稳。每次回复先简短回应，然后一定要问一个问题来推动对话继续。"
 
-# 本次对话上下文模板（话题 + 背景 + 时代记忆）
+# 本次对话上下文模板（话题 + 背景信息，背景信息中已包含精选的时代记忆）
 TOPIC_SECTION_TEMPLATE = """
 
 ## 本次对话主题
 
 本次对话的主题是：{topic}
 
-以下是与用户相关的背景信息：
-{chat_context}
-
-以下是用户这个阶段可能的时代记忆，可以自然地用来唤起回忆：
-{era_memories}
-
-注意：时代记忆只是参考，自然地在对话中提及，不要刻意地罗列。"""
+以下是与用户相关的背景信息（包含用户资料和相关的时代背景），可以自然地在对话中提及：
+{chat_context}"""
 
 
-def build(user_nickname: str = None, topic: str = None, chat_context: str = None, era_memories: str = None) -> str:
+def build(user_nickname: str = None, topic: str = None, chat_context: str = None) -> str:
     """构建正常对话模式的 system_role"""
     user_info = f"用户叫{user_nickname}。" if user_nickname else ""
 
     topic_section = ""
-    if topic or chat_context or era_memories:
+    if topic or chat_context:
         topic_section = TOPIC_SECTION_TEMPLATE.format(
             topic=topic or "自由聊天",
             chat_context=chat_context or "无",
-            era_memories=era_memories or "无"
         )
 
     return SYSTEM_ROLE.format(

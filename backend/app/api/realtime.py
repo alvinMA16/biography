@@ -87,12 +87,7 @@ async def realtime_dialog(websocket: WebSocket):
     custom_topic = query_params.get("topic", [None])[0]  # 话题标题
     custom_greeting = query_params.get("greeting", [None])[0]  # 自定义开场白
     custom_context = query_params.get("context", [None])[0]  # 预生成的对话上下文
-    # 话题对应的年龄范围（用于截取时代记忆）
-    age_start_str = query_params.get("age_start", [None])[0]
-    age_end_str = query_params.get("age_end", [None])[0]
-    topic_age_start = int(age_start_str) if age_start_str else None
-    topic_age_end = int(age_end_str) if age_end_str else None
-    print(f"[Realtime] 收到连接请求, speaker={speaker}, recorder_name={recorder_name}, conversation_id={conversation_id}, user_id={user_id}, mode={mode}, topic={'有' if custom_topic else '无'}, greeting={'有' if custom_greeting else '无'}, context={'有' if custom_context else '无'}, age_range={topic_age_start}-{topic_age_end}")
+    print(f"[Realtime] 收到连接请求, speaker={speaker}, recorder_name={recorder_name}, conversation_id={conversation_id}, user_id={user_id}, mode={mode}, topic={'有' if custom_topic else '无'}, greeting={'有' if custom_greeting else '无'}, context={'有' if custom_context else '无'}")
 
     client = None
     receive_task = None
@@ -166,9 +161,7 @@ async def realtime_dialog(websocket: WebSocket):
     try:
         # 检查用户是否需要收集信息，并获取用户信息
         actual_mode = mode
-        era_memories = None
         user_nickname = None
-        user_birth_year = None
 
         if user_id:
             db = SessionLocal()
@@ -179,29 +172,8 @@ async def realtime_dialog(websocket: WebSocket):
                         actual_mode = "profile_collection"
                         print(f"[Realtime] 用户未完成信息收集，切换到 profile_collection 模式")
                     else:
-                        # 获取用户信息用于正常对话
                         user_nickname = user.nickname
-                        user_birth_year = user.birth_year
-
-                        # 根据配置决定使用预生成时代记忆还是用户的时代记忆
-                        from app.services.era_memory_service import era_memory_service
-                        from app.config import settings
-
-                        if (settings.service_region == "CN" and
-                            user_birth_year and
-                            topic_age_start is not None and
-                            topic_age_end is not None):
-                            # 中国大陆 + 有出生年份 + 有年龄范围：使用预生成时代记忆
-                            era_memories = era_memory_service.get_for_topic(
-                                db, user_birth_year, topic_age_start, topic_age_end
-                            )
-                            print(f"[Realtime] 使用预生成时代记忆 (年龄范围 {topic_age_start}-{topic_age_end})")
-                        else:
-                            # 其他情况：使用用户的时代记忆
-                            era_memories = user.era_memories
-                            print(f"[Realtime] 使用用户时代记忆")
-
-                        print(f"[Realtime] 用户信息: nickname={user_nickname}, 时代记忆={'有' if era_memories else '无'}")
+                        print(f"[Realtime] 用户信息: nickname={user_nickname}")
             finally:
                 db.close()
 
@@ -210,7 +182,6 @@ async def realtime_dialog(websocket: WebSocket):
             speaker=speaker,  # 传入音色参数
             recorder_name=recorder_name,  # 传入记录师名字
             mode=actual_mode,  # 传入模式
-            era_memories=era_memories,  # 传入时代记忆
             user_nickname=user_nickname,  # 传入用户称呼
             topic=custom_topic,  # 传入话题标题
             chat_context=custom_context,  # 传入话题背景上下文

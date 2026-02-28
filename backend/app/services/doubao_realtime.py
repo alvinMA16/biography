@@ -120,7 +120,6 @@ class DoubaoRealtimeClient:
         speaker: Optional[str] = None,
         recorder_name: str = "小安",  # 记录师名字
         mode: str = "normal",  # normal 或 profile_collection
-        era_memories: Optional[str] = None,  # 时代记忆
         user_nickname: Optional[str] = None,  # 用户称呼
         topic: Optional[str] = None,  # 话题标题
         chat_context: Optional[str] = None,  # 话题背景上下文
@@ -133,7 +132,6 @@ class DoubaoRealtimeClient:
         self.speaker = speaker or settings.doubao_speaker  # 使用传入的音色或默认音色
         self.recorder_name = recorder_name
         self.mode = mode
-        self.era_memories = era_memories
         self.user_nickname = user_nickname
         self.topic = topic
         self.chat_context = chat_context
@@ -183,7 +181,7 @@ class DoubaoRealtimeClient:
                 system_role = realtime_profile_collection.build(self.recorder_name)
                 speaking_style = realtime_profile_collection.SPEAKING_STYLE
             else:
-                system_role = realtime_chat.build(self.user_nickname, self.topic, self.chat_context, self.era_memories)
+                system_role = realtime_chat.build(self.user_nickname, self.topic, self.chat_context)
                 speaking_style = realtime_chat.SPEAKING_STYLE
 
             # StartSession request
