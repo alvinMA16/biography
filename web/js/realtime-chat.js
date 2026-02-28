@@ -75,6 +75,60 @@ window.onload = async function() {
     await connectWebSocket();
 };
 
+// 尝试恢复 AudioContext 并发送 ready 信号
+async function tryResumeAndSendReady() {
+    if (!playbackContext) return;
+
+    if (playbackContext.state === 'running') {
+        // 已经在运行，直接发送 ready
+        sendReady();
+        return;
+    }
+
+    // 尝试恢复
+    try {
+        await playbackContext.resume();
+        console.log('AudioContext 已自动恢复');
+        sendReady();
+    } catch (e) {
+        console.log('AudioContext 自动恢复失败，等待用户交互');
+        // 监听用户任意交互
+        waitForUserInteraction();
+    }
+}
+
+// 等待用户交互后恢复 AudioContext
+function waitForUserInteraction() {
+    const resumeAudio = async () => {
+        if (playbackContext && playbackContext.state === 'suspended') {
+            try {
+                await playbackContext.resume();
+                console.log('AudioContext 已通过用户交互恢复');
+                sendReady();
+            } catch (e) {
+                console.error('AudioContext 恢复失败:', e);
+            }
+        }
+        // 移除事件监听
+        document.removeEventListener('click', resumeAudio);
+        document.removeEventListener('touchstart', resumeAudio);
+    };
+
+    document.addEventListener('click', resumeAudio, { once: true });
+    document.addEventListener('touchstart', resumeAudio, { once: true });
+
+    // 提示用户
+    updateVoiceStatus('点击屏幕开始');
+}
+
+// 发送 ready 信号给后端
+function sendReady() {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'ready' }));
+        console.log('已发送 ready 信号');
+    }
+}
+
 // ========== WebSocket 连接 ==========
 
 // 记录师信息
@@ -163,6 +217,8 @@ function handleServerMessage(message) {
                 isConnected = true;
                 updateAIText('');  // 清空，等待 AI 开始说话后再显示
                 updateVoiceStatus('请稍候');
+                // 尝试恢复 AudioContext 并发送 ready 信号
+                tryResumeAndSendReady();
             } else if (message.status === 'error') {
                 showError(message.message);
             }
