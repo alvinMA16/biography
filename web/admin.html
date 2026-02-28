@@ -37,6 +37,10 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                         操作日志
                     </button>
+                    <button class="admin-nav-item" data-tab="era-memories" onclick="switchTab('era-memories')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        时代记忆
+                    </button>
                 </nav>
                 <div class="admin-sidebar-footer">
                     <button class="admin-nav-item admin-logout-btn" onclick="logout()">
@@ -95,6 +99,31 @@
                                     </tr>
                                 </thead>
                                 <tbody id="logTableBody">
+                                    <tr><td colspan="4" class="admin-table-empty">加载中...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 时代记忆 Tab -->
+                <div id="tabEraMemories" class="admin-tab-panel">
+                    <header class="admin-panel-header">
+                        <h1>时代记忆</h1>
+                        <button class="btn btn-primary" onclick="showEraMemoryModal()">新增记忆</button>
+                    </header>
+                    <div class="admin-panel-content">
+                        <div class="admin-card">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width:100px;">年份</th>
+                                        <th style="width:100px;">分类</th>
+                                        <th>内容</th>
+                                        <th style="width:120px;">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="eraMemoryTableBody">
                                     <tr><td colspan="4" class="admin-table-empty">加载中...</td></tr>
                                 </tbody>
                             </table>
@@ -196,6 +225,49 @@
                     <code id="newPasswordText"></code>
                 </div>
                 <button id="copyBtn" class="btn btn-secondary" onclick="copyPassword()" style="margin-top:16px;">复制</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 时代记忆编辑弹窗 -->
+    <div class="modal" id="eraMemoryModal" style="display:none;" onclick="if(event.target===this)closeEraMemoryModal()">
+        <div class="modal-content admin-modal-form">
+            <div class="modal-header">
+                <h2 id="eraMemoryModalTitle">新增时代记忆</h2>
+                <button class="btn-close" onclick="closeEraMemoryModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="eraMemoryId">
+                <div class="admin-form-grid">
+                    <div class="admin-form-group">
+                        <label>起始年份 <span class="required">*</span></label>
+                        <input type="number" id="eraMemoryStartYear" class="admin-input" placeholder="如 1950" min="1900" max="2030">
+                    </div>
+                    <div class="admin-form-group">
+                        <label>结束年份 <span class="required">*</span></label>
+                        <input type="number" id="eraMemoryEndYear" class="admin-input" placeholder="如 1959" min="1900" max="2030">
+                    </div>
+                    <div class="admin-form-group admin-form-full">
+                        <label>分类</label>
+                        <select id="eraMemoryCategory" class="admin-input">
+                            <option value="">不分类</option>
+                            <option value="历史事件">历史事件</option>
+                            <option value="流行文化">流行文化</option>
+                            <option value="社会风潮">社会风潮</option>
+                            <option value="品牌零食">品牌零食</option>
+                            <option value="科技发展">科技发展</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    <div class="admin-form-group admin-form-full">
+                        <label>内容 <span class="required">*</span></label>
+                        <textarea id="eraMemoryContent" class="admin-input" rows="3" placeholder="事件或现象描述"></textarea>
+                    </div>
+                </div>
+                <div class="admin-modal-footer">
+                    <button class="admin-modal-btn admin-modal-btn-cancel" onclick="closeEraMemoryModal()">取消</button>
+                    <button class="admin-modal-btn admin-modal-btn-confirm" onclick="saveEraMemory()">保存</button>
+                </div>
             </div>
         </div>
     </div>

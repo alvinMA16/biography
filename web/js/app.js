@@ -145,10 +145,10 @@ async function selectTopicByIndex(index) {
     if (index < 0 || index >= options.length) return;
 
     const opt = options[index];
-    await selectTopic(opt.id, opt.topic, opt.greeting, opt.context);
+    await selectTopic(opt.id, opt.topic, opt.greeting, opt.context, opt.age_start, opt.age_end);
 }
 
-async function selectTopic(topicId, topic, greeting, context) {
+async function selectTopic(topicId, topic, greeting, context, ageStart, ageEnd) {
     closeTopicModal();
 
     try {
@@ -160,6 +160,13 @@ async function selectTopic(topicId, topic, greeting, context) {
         storage.set('selectedTopic', topic);
         storage.set('selectedTopicGreeting', greeting);
         storage.set('selectedTopicContext', context || '');
+        // 存储年龄范围（用于截取时代记忆）
+        if (ageStart !== null && ageStart !== undefined) {
+            storage.set('selectedTopicAgeStart', ageStart);
+        }
+        if (ageEnd !== null && ageEnd !== undefined) {
+            storage.set('selectedTopicAgeEnd', ageEnd);
+        }
 
         // 跳转到对话页面
         window.location.href = 'chat.html';

@@ -78,6 +78,10 @@ Vanilla HTML/CSS/JS (no framework). Key files:
 - PostgreSQL managed by Alembic migrations; SQLite uses auto-create (`Base.metadata.create_all`).
 - Background tasks (memoir generation, topic pool review, era memories) run via FastAPI's `BackgroundTasks`.
 
+## Git Workflow
+
+**重要：提交代码前必须先和用户确认，不允许自动提交。** 完成代码修改后，先告知用户改动内容，等用户明确同意后再执行 `git commit` 和 `git push`。
+
 ## Important Files
 
 - `docs/PRD.md` — Product requirements (Chinese)

@@ -41,7 +41,9 @@ class TopicService:
                 "id": c.id,
                 "topic": c.topic,
                 "greeting": c.greeting,
-                "context": c.chat_context or ""
+                "context": c.chat_context or "",
+                "age_start": c.age_start,
+                "age_end": c.age_end
             }
             for c in selected
         ]
@@ -106,7 +108,9 @@ class TopicService:
                     user_id=user.id,
                     topic=opt.get("topic", ""),
                     greeting=opt.get("greeting", ""),
-                    chat_context=opt.get("context", "")
+                    chat_context=opt.get("context", ""),
+                    age_start=opt.get("age_start"),
+                    age_end=opt.get("age_end")
                 )
                 db.add(candidate)
                 db.flush()
@@ -114,7 +118,9 @@ class TopicService:
                     "id": candidate.id,
                     "topic": candidate.topic,
                     "greeting": candidate.greeting,
-                    "context": candidate.chat_context or ""
+                    "context": candidate.chat_context or "",
+                    "age_start": candidate.age_start,
+                    "age_end": candidate.age_end
                 })
 
             db.commit()
@@ -229,6 +235,10 @@ class TopicService:
                     c.topic = action.get("new_topic", c.topic)
                     c.greeting = action.get("new_greeting", c.greeting)
                     c.chat_context = action.get("new_context", c.chat_context)
+                    if "new_age_start" in action:
+                        c.age_start = action.get("new_age_start")
+                    if "new_age_end" in action:
+                        c.age_end = action.get("new_age_end")
                     print(f"[Topic] 更新话题: {c.topic}")
 
             elif action_type == "add":
@@ -236,7 +246,9 @@ class TopicService:
                     user_id=user_id,
                     topic=action.get("topic", ""),
                     greeting=action.get("greeting", ""),
-                    chat_context=action.get("context", "")
+                    chat_context=action.get("context", ""),
+                    age_start=action.get("age_start"),
+                    age_end=action.get("age_end")
                 )
                 db.add(new_candidate)
                 print(f"[Topic] 新增话题: {new_candidate.topic}")
@@ -311,32 +323,44 @@ class TopicService:
             {
                 "topic": "小时候的事",
                 "greeting": "今天想听您讲讲小时候的事。您还记得小时候住在哪里吗？那时候是什么样的？",
-                "context": "暂无相关背景信息"
+                "context": "暂无相关背景信息",
+                "age_start": 0,
+                "age_end": 12
             },
             {
                 "topic": "上学那些年",
                 "greeting": "今天想听您聊聊上学的事。您还记得上学的时候，有什么印象特别深的事吗？",
-                "context": "暂无相关背景信息"
+                "context": "暂无相关背景信息",
+                "age_start": 6,
+                "age_end": 22
             },
             {
                 "topic": "工作经历",
                 "greeting": "今天想听您讲讲工作的事。您年轻的时候是做什么工作的？是怎么开始的？",
-                "context": "暂无相关背景信息"
+                "context": "暂无相关背景信息",
+                "age_start": 18,
+                "age_end": 60
             },
             {
                 "topic": "认识爱人",
                 "greeting": "今天想听您聊聊感情的事。您还记得您是怎么认识您爱人的吗？",
-                "context": "暂无相关背景信息"
+                "context": "暂无相关背景信息",
+                "age_start": 18,
+                "age_end": 35
             },
             {
                 "topic": "当父母的日子",
                 "greeting": "今天想听您聊聊孩子的事。您还记得孩子小时候的样子吗？",
-                "context": "暂无相关背景信息"
+                "context": "暂无相关背景信息",
+                "age_start": 25,
+                "age_end": 50
             },
             {
                 "topic": "人生的转折",
                 "greeting": "今天想听您聊聊人生中的重要时刻。有没有哪件事改变了您的人生轨迹？",
-                "context": "暂无相关背景信息"
+                "context": "暂无相关背景信息",
+                "age_start": 0,
+                "age_end": 80
             },
         ]
 
@@ -352,7 +376,9 @@ class TopicService:
                 user_id=user_id,
                 topic=opt.get("topic", ""),
                 greeting=opt.get("greeting", ""),
-                chat_context=opt.get("context", "")
+                chat_context=opt.get("context", ""),
+                age_start=opt.get("age_start"),
+                age_end=opt.get("age_end")
             )
             db.add(candidate)
             db.flush()
@@ -360,7 +386,9 @@ class TopicService:
                 "id": candidate.id,
                 "topic": candidate.topic,
                 "greeting": candidate.greeting,
-                "context": candidate.chat_context or ""
+                "context": candidate.chat_context or "",
+                "age_start": candidate.age_start,
+                "age_end": candidate.age_end
             })
 
         db.commit()

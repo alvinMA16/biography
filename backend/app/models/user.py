@@ -43,9 +43,24 @@ class TopicCandidate(Base):
     topic = Column(String(200), nullable=False)  # 话题描述（给用户看的选项）
     greeting = Column(Text, nullable=False)  # 对应的开场白
     chat_context = Column(Text, nullable=True)  # 对话时注入的背景上下文
+    age_start = Column(Integer, nullable=True)  # 话题对应的人生阶段起始年龄
+    age_end = Column(Integer, nullable=True)  # 话题对应的人生阶段结束年龄
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="topic_candidates")
+
+
+class EraMemoryPreset(Base):
+    """预生成的时代记忆（中国大陆通用，按事件存储）"""
+    __tablename__ = "era_memories_preset"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    start_year = Column(Integer, nullable=False)  # 事件开始年份
+    end_year = Column(Integer, nullable=False)  # 事件结束年份（可等于 start_year）
+    category = Column(String(50), nullable=True)  # 分类：历史事件/流行文化/社会风潮/品牌零食等
+    content = Column(Text, nullable=False)  # 事件/现象描述
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class GreetingCandidate(Base):

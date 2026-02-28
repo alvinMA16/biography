@@ -31,6 +31,7 @@ class Settings(BaseSettings):
 
     # 应用配置
     debug: bool = True
+    service_region: str = "CN"  # 服务区域：CN=中国大陆（使用预生成时代记忆），其他=临时生成
 
     # 话题生成配置
     topic_memoir_count: int = 10  # 生成话题时参考的最近回忆录数量

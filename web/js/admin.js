@@ -64,6 +64,8 @@ function logout() {
 
 // ========== Tab 切换 ==========
 
+let eraMemoriesLoaded = false;
+
 function switchTab(tab) {
     // 更新侧边栏选中态
     document.querySelectorAll('.admin-nav-item[data-tab]').forEach(btn => {
@@ -78,6 +80,9 @@ function switchTab(tab) {
     } else if (tab === 'logs') {
         document.getElementById('tabLogs').classList.add('active');
         if (!logsLoaded) loadLogs();
+    } else if (tab === 'era-memories') {
+        document.getElementById('tabEraMemories').classList.add('active');
+        if (!eraMemoriesLoaded) loadEraMemories();
     }
 }
 
@@ -119,6 +124,9 @@ const ACTION_LABELS = {
     create_user: '创建用户',
     edit_user: '编辑用户',
     reset_password: '重置密码',
+    create_era_memory: '创建时代记忆',
+    update_era_memory: '更新时代记忆',
+    delete_era_memory: '删除时代记忆',
 };
 
 async function loadLogs() {
@@ -279,6 +287,144 @@ function copyPassword() {
         btn.textContent = '已复制';
         setTimeout(() => { btn.textContent = '复制'; }, 1500);
     });
+}
+
+// ========== 时代记忆管理 ==========
+
+let eraMemoriesData = [];
+
+async function loadEraMemories() {
+    try {
+        const memories = await adminRequest('/admin/era-memories');
+        eraMemoriesData = memories;
+        eraMemoriesLoaded = true;
+        renderEraMemoryTable(memories);
+    } catch (e) {
+        document.getElementById('eraMemoryTableBody').innerHTML =
+            '<tr><td colspan="4" class="admin-table-empty">加载失败</td></tr>';
+    }
+}
+
+function renderEraMemoryTable(memories) {
+    const tbody = document.getElementById('eraMemoryTableBody');
+    if (!memories.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="admin-table-empty">暂无时代记忆</td></tr>';
+        return;
+    }
+    // 按起始年份排序
+    const sorted = [...memories].sort((a, b) => a.start_year - b.start_year);
+    tbody.innerHTML = sorted.map(m => `
+        <tr>
+            <td>${m.start_year}-${m.end_year}</td>
+            <td>${m.category || '<span class="text-muted">-</span>'}</td>
+            <td class="admin-era-content">${escapeHtml(m.content)}</td>
+            <td class="admin-actions-cell">
+                <button class="admin-btn admin-btn-sm" onclick="editEraMemory('${m.id}')">编辑</button>
+                <button class="admin-btn admin-btn-sm admin-btn-danger" onclick="deleteEraMemory('${m.id}')">删除</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showEraMemoryModal() {
+    document.getElementById('eraMemoryModalTitle').textContent = '新增时代记忆';
+    document.getElementById('eraMemoryId').value = '';
+    document.getElementById('eraMemoryStartYear').value = '';
+    document.getElementById('eraMemoryEndYear').value = '';
+    document.getElementById('eraMemoryCategory').value = '';
+    document.getElementById('eraMemoryContent').value = '';
+    document.getElementById('eraMemoryModal').style.display = 'flex';
+    document.getElementById('eraMemoryStartYear').focus();
+}
+
+function editEraMemory(id) {
+    const memory = eraMemoriesData.find(m => m.id === id);
+    if (!memory) return;
+
+    document.getElementById('eraMemoryModalTitle').textContent = '编辑时代记忆';
+    document.getElementById('eraMemoryId').value = id;
+    document.getElementById('eraMemoryStartYear').value = memory.start_year;
+    document.getElementById('eraMemoryEndYear').value = memory.end_year;
+    document.getElementById('eraMemoryCategory').value = memory.category || '';
+    document.getElementById('eraMemoryContent').value = memory.content;
+    document.getElementById('eraMemoryModal').style.display = 'flex';
+    document.getElementById('eraMemoryContent').focus();
+}
+
+function closeEraMemoryModal() {
+    document.getElementById('eraMemoryModal').style.display = 'none';
+}
+
+async function saveEraMemory() {
+    const id = document.getElementById('eraMemoryId').value;
+    const startYear = document.getElementById('eraMemoryStartYear').value.trim();
+    const endYear = document.getElementById('eraMemoryEndYear').value.trim();
+    const category = document.getElementById('eraMemoryCategory').value;
+    const content = document.getElementById('eraMemoryContent').value.trim();
+
+    if (!startYear || !endYear || !content) {
+        alert('请填写起始年份、结束年份和内容');
+        return;
+    }
+
+    const payload = {
+        start_year: parseInt(startYear, 10),
+        end_year: parseInt(endYear, 10),
+        category: category || null,
+        content: content,
+    };
+
+    if (payload.start_year > payload.end_year) {
+        alert('起始年份不能大于结束年份');
+        return;
+    }
+
+    try {
+        if (id) {
+            // 编辑
+            await adminRequest(`/admin/era-memories/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify(payload),
+            });
+        } else {
+            // 新增
+            await adminRequest('/admin/era-memories', {
+                method: 'POST',
+                body: JSON.stringify(payload),
+            });
+        }
+        closeEraMemoryModal();
+        eraMemoriesLoaded = false;
+        await loadEraMemories();
+        logsLoaded = false;
+    } catch (e) {
+        alert('保存失败：' + e.message);
+    }
+}
+
+async function deleteEraMemory(id) {
+    const memory = eraMemoriesData.find(m => m.id === id);
+    if (!memory) return;
+
+    const preview = memory.content.length > 30 ? memory.content.substring(0, 30) + '...' : memory.content;
+    if (!confirm(`确定删除这条时代记忆？\n\n${memory.start_year}-${memory.end_year}: ${preview}`)) return;
+
+    try {
+        await adminRequest(`/admin/era-memories/${id}`, {
+            method: 'DELETE',
+        });
+        eraMemoriesLoaded = false;
+        await loadEraMemories();
+        logsLoaded = false;
+    } catch (e) {
+        alert('删除失败：' + e.message);
+    }
 }
 
 // ========== 初始化 ==========

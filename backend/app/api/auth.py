@@ -275,3 +275,133 @@ def admin_list_logs(
         )
         for log in logs
     ]
+
+
+# ========== 管理员：时代记忆管理 ==========
+
+class EraMemoryItem(BaseModel):
+    id: str
+    start_year: int
+    end_year: int
+    category: Optional[str] = None
+    content: str
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class EraMemoryCreateRequest(BaseModel):
+    start_year: int
+    end_year: int
+    category: Optional[str] = None
+    content: str
+
+
+class EraMemoryUpdateRequest(BaseModel):
+    start_year: Optional[int] = None
+    end_year: Optional[int] = None
+    category: Optional[str] = None
+    content: Optional[str] = None
+
+
+@admin_router.get("/era-memories", response_model=List[EraMemoryItem])
+def admin_list_era_memories(
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin_key),
+):
+    """管理员获取所有预生成的时代记忆"""
+    from app.services.era_memory_service import era_memory_service
+    memories = era_memory_service.get_all(db)
+    return [
+        EraMemoryItem(
+            id=m.id,
+            start_year=m.start_year,
+            end_year=m.end_year,
+            category=m.category,
+            content=m.content,
+            created_at=m.created_at,
+            updated_at=m.updated_at,
+        )
+        for m in memories
+    ]
+
+
+@admin_router.post("/era-memories", response_model=EraMemoryItem)
+def admin_create_era_memory(
+    req: EraMemoryCreateRequest,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin_key),
+):
+    """管理员创建时代记忆条目"""
+    from app.services.era_memory_service import era_memory_service
+    memory = era_memory_service.create(
+        db,
+        start_year=req.start_year,
+        end_year=req.end_year,
+        content=req.content,
+        category=req.category
+    )
+    _log_action(db, "create_era_memory", None, f"{req.start_year}-{req.end_year}",
+                f"创建时代记忆：{req.content[:50]}...")
+    return EraMemoryItem(
+        id=memory.id,
+        start_year=memory.start_year,
+        end_year=memory.end_year,
+        category=memory.category,
+        content=memory.content,
+        created_at=memory.created_at,
+        updated_at=memory.updated_at,
+    )
+
+
+@admin_router.put("/era-memories/{memory_id}", response_model=EraMemoryItem)
+def admin_update_era_memory(
+    memory_id: str,
+    req: EraMemoryUpdateRequest,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin_key),
+):
+    """管理员更新时代记忆条目"""
+    from app.services.era_memory_service import era_memory_service
+    memory = era_memory_service.update(
+        db,
+        memory_id=memory_id,
+        start_year=req.start_year,
+        end_year=req.end_year,
+        content=req.content,
+        category=req.category
+    )
+    if not memory:
+        raise HTTPException(status_code=404, detail="时代记忆不存在")
+
+    _log_action(db, "update_era_memory", None, f"{memory.start_year}-{memory.end_year}",
+                f"更新时代记忆：{memory.content[:50]}...")
+    return EraMemoryItem(
+        id=memory.id,
+        start_year=memory.start_year,
+        end_year=memory.end_year,
+        category=memory.category,
+        content=memory.content,
+        created_at=memory.created_at,
+        updated_at=memory.updated_at,
+    )
+
+
+@admin_router.delete("/era-memories/{memory_id}")
+def admin_delete_era_memory(
+    memory_id: str,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin_key),
+):
+    """管理员删除时代记忆条目"""
+    from app.services.era_memory_service import era_memory_service
+    memory = era_memory_service.get_by_id(db, memory_id)
+    if not memory:
+        raise HTTPException(status_code=404, detail="时代记忆不存在")
+
+    content_preview = memory.content[:50] if memory.content else ""
+    year_range = f"{memory.start_year}-{memory.end_year}"
+
+    era_memory_service.delete(db, memory_id)
+    _log_action(db, "delete_era_memory", None, year_range,
+                f"删除时代记忆：{content_preview}...")
+    return {"success": True}
