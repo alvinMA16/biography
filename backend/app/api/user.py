@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
 from app.database import get_db
-from app.models import User, Conversation, Message, Memoir, GreetingCandidate
+from app.models import User, Conversation, Message, Memoir
 from app.auth import get_current_user
 
 router = APIRouter()
@@ -153,7 +153,6 @@ def delete_user(
         db.query(Message).filter(Message.conversation_id == conv.id).delete()
 
     db.query(Conversation).filter(Conversation.user_id == user_id).delete()
-    db.query(GreetingCandidate).filter(GreetingCandidate.user_id == user_id).delete()
 
     db.delete(current_user)
     db.commit()

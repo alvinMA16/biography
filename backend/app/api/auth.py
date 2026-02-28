@@ -35,11 +35,7 @@ def _run_post_profile_tasks(user_id: str):
             logger.warning("[Admin] 后台任务：用户 %s 不存在，跳过", user_id)
             return
 
-        from app.services.greeting_service import greeting_service
         from app.services.topic_service import topic_service
-
-        logger.info("[Admin] 为用户 %s 生成初始开场白...", user_id)
-        greeting_service.generate_initial_greetings(db, user)
 
         logger.info("[Admin] 为用户 %s 生成初始话题...", user_id)
         topic_service.generate_topic_options(db, user)

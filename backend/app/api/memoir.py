@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 
 from app.database import get_db, SessionLocal
+from app.config import settings
 from app.services.memoir_service import memoir_service
 from app.models import User, Memoir
 from app.auth import get_current_user
@@ -67,7 +68,14 @@ def generate_memoir(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """从对话生成回忆录"""
+    """从对话生成回忆录（仅 debug 模式，会覆盖已有回忆录）"""
+    if not settings.debug:
+        raise HTTPException(status_code=403, detail="手动生成回忆录仅在 debug 模式下可用")
+
+    # 删除该对话已有的回忆录
+    db.query(Memoir).filter(Memoir.conversation_id == request.conversation_id).delete()
+    db.commit()
+
     memoir = memoir_service.generate_from_conversation(
         db=db,
         user_id=current_user.id,
@@ -100,7 +108,14 @@ def generate_memoir_async(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """异步生成回忆录（立即返回）"""
+    """异步生成回忆录（仅 debug 模式，会覆盖已有回忆录）"""
+    if not settings.debug:
+        raise HTTPException(status_code=403, detail="手动生成回忆录仅在 debug 模式下可用")
+
+    # 删除该对话已有的回忆录
+    db.query(Memoir).filter(Memoir.conversation_id == request.conversation_id).delete()
+    db.commit()
+
     memoir = memoir_service.create_generating(
         db=db,
         user_id=current_user.id,

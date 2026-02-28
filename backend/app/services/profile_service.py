@@ -2,7 +2,6 @@
 用户信息服务
 - 从对话中提取用户基础信息
 - 更新用户资料
-- 触发初始开场白生成
 """
 import json
 from typing import Optional, Dict
@@ -11,7 +10,6 @@ from openai import OpenAI
 
 from app.config import settings
 from app.models import User, Conversation, Message
-from app.services.greeting_service import greeting_service
 from app.services.topic_service import topic_service
 
 
@@ -111,9 +109,6 @@ class ProfileService:
                 user.profile_completed = True
                 db.commit()
                 print(f"[Profile] 用户信息收集完成")
-
-                # 生成初始开场白
-                greeting_service.generate_initial_greetings(db, user)
 
                 # 生成初始话题选项
                 topic_service.generate_topic_options(db, user)

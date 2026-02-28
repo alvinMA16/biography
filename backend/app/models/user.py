@@ -30,9 +30,6 @@ class User(Base):
     # 话题候选池
     topic_candidates = relationship("TopicCandidate", back_populates="user", cascade="all, delete-orphan")
 
-    # 旧的开场白候选池（兼容）
-    greeting_candidates = relationship("GreetingCandidate", back_populates="user", cascade="all, delete-orphan")
-
 
 class TopicCandidate(Base):
     """预生成的话题候选（用户开始新对话时选择）"""
@@ -63,15 +60,3 @@ class EraMemoryPreset(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
-class GreetingCandidate(Base):
-    """预生成的开场白候选（旧版，保留兼容）"""
-    __tablename__ = "greeting_candidates"
-
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
-    content = Column(Text, nullable=False)  # 开场白内容
-    topic = Column(String(50), nullable=True)  # 相关主题（可选）
-    context = Column(Text, nullable=True)  # 生成时的上下文参考（便于调试）
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    user = relationship("User", back_populates="greeting_candidates")

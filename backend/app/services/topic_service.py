@@ -154,52 +154,66 @@ class TopicService:
                 print(f"[Topic] 用户不存在: {user_id}")
                 return
 
-            # 获取现有话题
-            candidates = db.query(TopicCandidate).filter(
-                TopicCandidate.user_id == user_id
-            ).all()
-
             # 构建审查所需的数据
             profile = self._build_user_profile(user)
-            # 获取时代记忆：优先用 preset 表，fallback 到用户个人时代记忆
             era_memories = ""
             if user.birth_year:
                 era_memories = era_memory_service.get_for_user(db, user.birth_year)
             if not era_memories:
                 era_memories = user.era_memories or ""
             all_memoirs = self._get_all_memoirs_summary(db, user_id)
-            current_topics = self._format_current_topics(candidates)
 
-            prompt = topic_review.build(
-                user_profile=profile,
-                era_memories=era_memories,
-                all_memoirs=all_memoirs,
-                current_topics=current_topics
-            )
+            # 最多尝试 2 次，确保池子不为空
+            for attempt in range(2):
+                candidates = db.query(TopicCandidate).filter(
+                    TopicCandidate.user_id == user_id
+                ).all()
+                current_topics = self._format_current_topics(candidates)
 
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
-                max_tokens=3000
-            )
+                prompt = topic_review.build(
+                    user_profile=profile,
+                    era_memories=era_memories,
+                    all_memoirs=all_memoirs,
+                    current_topics=current_topics
+                )
 
-            content = response.choices[0].message.content.strip()
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.7,
+                    max_tokens=3000
+                )
 
-            # 处理可能的 markdown 代码块
-            if content.startswith("```"):
-                content = content.split("```")[1]
-                if content.startswith("json"):
-                    content = content[4:]
-                content = content.strip()
+                content = response.choices[0].message.content.strip()
 
-            result = json.loads(content)
-            actions = result.get("actions", [])
+                # 处理可能的 markdown 代码块
+                if content.startswith("```"):
+                    content = content.split("```")[1]
+                    if content.startswith("json"):
+                        content = content[4:]
+                    content = content.strip()
 
-            # 执行审查结果
-            self._apply_review_actions(db, user_id, candidates, actions)
+                result = json.loads(content)
+                actions = result.get("actions", [])
 
-            print(f"[Topic] 话题池审查完成，执行了 {len(actions)} 个操作")
+                self._apply_review_actions(db, user_id, candidates, actions)
+
+                # 检查池子是否为空
+                remaining = db.query(TopicCandidate).filter(
+                    TopicCandidate.user_id == user_id
+                ).count()
+
+                if remaining > 0:
+                    print(f"[Topic] 话题池审查完成，执行了 {len(actions)} 个操作，剩余 {remaining} 个话题")
+                    break
+
+                if attempt == 0:
+                    print(f"[Topic] 审查后话题池为空，重试一次...")
+                else:
+                    # 两次都为空，回退到默认安全话题
+                    print(f"[Topic] 重试后话题池仍为空，使用默认话题兜底")
+                    default_options = self._get_default_options()
+                    self._save_default_options(db, user_id, default_options)
 
         except Exception as e:
             print(f"[Topic] 话题池审查失败: {e}")
