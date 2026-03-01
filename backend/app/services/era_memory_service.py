@@ -25,6 +25,8 @@ class EraMemoryItem:
     end_year: int
     category: Optional[str]
     content: str
+    created_at: Optional[datetime.datetime] = None
+    updated_at: Optional[datetime.datetime] = None
 
 
 class EraMemoryService:
@@ -44,6 +46,8 @@ class EraMemoryService:
                     end_year=r.end_year,
                     category=r.category,
                     content=r.content,
+                    created_at=r.created_at,
+                    updated_at=r.updated_at,
                 )
                 for r in rows
             ]

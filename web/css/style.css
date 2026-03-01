@@ -1515,6 +1515,21 @@ body {
     background: #fdf2f2;
 }
 
+.admin-btn-warn {
+    color: #e67e22;
+    border-color: #f0dcc0;
+}
+
+.admin-btn-warn:hover {
+    color: #d35400;
+    border-color: #e67e22;
+    background: #fef9f2;
+}
+
+.admin-row-disabled {
+    opacity: 0.55;
+}
+
 /* 弹窗表单 */
 .admin-modal-form {
     max-width: 520px;

@@ -97,25 +97,31 @@ async function loadUsers() {
 function renderUserTable(users) {
     const tbody = document.getElementById('userTableBody');
     if (!users.length) {
-        tbody.innerHTML = '<tr><td colspan="9" class="admin-table-empty">暂无用户</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="admin-table-empty">暂无用户</td></tr>';
         return;
     }
-    tbody.innerHTML = users.map(u => `
-        <tr>
+    tbody.innerHTML = users.map(u => {
+        const isActive = u.is_active !== false;
+        const label = (u.phone || u.nickname || '').replace(/'/g, "\\'");
+        return `
+        <tr${!isActive ? ' class="admin-row-disabled"' : ''}>
             <td>${u.phone || '-'}</td>
             <td>${u.nickname || '<span class="text-muted">-</span>'}</td>
             <td>${u.birth_year || '<span class="text-muted">-</span>'}</td>
             <td>${u.hometown || '<span class="text-muted">-</span>'}</td>
             <td>${u.main_city || '<span class="text-muted">-</span>'}</td>
             <td><span class="admin-badge ${u.profile_completed ? 'badge-yes' : 'badge-no'}">${u.profile_completed ? '已完成' : '未完成'}</span></td>
+            <td><span class="admin-badge ${isActive ? 'badge-yes' : 'badge-no'}">${isActive ? '正常' : '已禁用'}</span></td>
             <td>${u.conversation_count} / ${u.memoir_count}</td>
             <td>${u.created_at ? new Date(u.created_at).toLocaleDateString('zh-CN') : '-'}</td>
             <td class="admin-actions-cell">
                 <button class="admin-btn admin-btn-sm" onclick="showEditModal('${u.id}')">编辑</button>
-                <button class="admin-btn admin-btn-sm admin-btn-danger" onclick="resetPassword('${u.id}', '${(u.phone || u.nickname || '').replace(/'/g, "\\'")}')">重置密码</button>
+                <button class="admin-btn admin-btn-sm ${isActive ? 'admin-btn-warn' : ''}" onclick="toggleUserActive('${u.id}', '${label}')">${isActive ? '禁用' : '启用'}</button>
+                <button class="admin-btn admin-btn-sm admin-btn-danger" onclick="deleteUser('${u.id}', '${label}')">删除</button>
+                <button class="admin-btn admin-btn-sm" onclick="resetPassword('${u.id}', '${label}')">重置密码</button>
             </td>
-        </tr>
-    `).join('');
+        </tr>`;
+    }).join('');
 }
 
 // ========== 操作日志 ==========
@@ -124,6 +130,8 @@ const ACTION_LABELS = {
     create_user: '创建用户',
     edit_user: '编辑用户',
     reset_password: '重置密码',
+    delete_user: '删除用户',
+    toggle_user_active: '禁用/启用',
     create_era_memory: '创建时代记忆',
     update_era_memory: '更新时代记忆',
     delete_era_memory: '删除时代记忆',
@@ -209,6 +217,41 @@ async function createUser() {
         logsLoaded = false; // 刷新日志缓存
     } catch (e) {
         alert('创建失败：' + e.message);
+    }
+}
+
+// ========== 禁用/启用用户 ==========
+
+async function toggleUserActive(userId, label) {
+    const user = usersData.find(u => u.id === userId);
+    const isActive = user ? user.is_active !== false : true;
+    const action = isActive ? '禁用' : '启用';
+    if (!confirm(`确定${action}用户 ${label}？`)) return;
+
+    try {
+        await adminRequest(`/admin/user/${userId}/toggle-active`, {
+            method: 'POST',
+        });
+        await loadUsers();
+        logsLoaded = false;
+    } catch (e) {
+        alert(`${action}失败：` + e.message);
+    }
+}
+
+// ========== 删除用户 ==========
+
+async function deleteUser(userId, label) {
+    if (!confirm(`确定删除用户 ${label}？\n\n此操作将删除该用户的所有数据（对话、回忆录等），不可恢复！`)) return;
+
+    try {
+        await adminRequest(`/admin/user/${userId}`, {
+            method: 'DELETE',
+        });
+        await loadUsers();
+        logsLoaded = false;
+    } catch (e) {
+        alert('删除失败：' + e.message);
     }
 }
 
