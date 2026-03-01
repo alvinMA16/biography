@@ -1096,9 +1096,17 @@ body {
     text-align: center;
 }
 
-.topic-option:hover {
+/* 只在支持精确指针的设备（鼠标）上显示 hover，避免移动端触摸残留高亮 */
+@media (hover: hover) and (pointer: fine) {
+    .topic-option:hover {
+        border-color: var(--color-accent);
+        background: rgba(139, 69, 19, 0.03);
+    }
+}
+
+.topic-option:active {
     border-color: var(--color-accent);
-    background: rgba(139, 69, 19, 0.03);
+    background: rgba(139, 69, 19, 0.05);
 }
 
 .topic-option .topic-title {
