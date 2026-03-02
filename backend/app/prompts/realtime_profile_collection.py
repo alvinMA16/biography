@@ -69,7 +69,7 @@ def build(recorder_name: str, user_name: str = None, birth_year: int = None, hom
 
     # 根据是否有已知信息，生成不同的任务描述
     if birth_year:
-        birth_year_task = f"已知是{birth_year}年，请确认（如"您是{birth_year}年出生的，对吗？"）"
+        birth_year_task = f'已知是{birth_year}年，请确认（如"您是{birth_year}年出生的，对吗？"）'
     else:
         birth_year_task = "需要询问"
 

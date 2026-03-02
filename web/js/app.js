@@ -153,7 +153,7 @@ async function selectTopicByIndex(index) {
 }
 
 async function selectFreeTopic() {
-    await selectTopic(null, '__free__', '好的，今天您来定，想聊点什么？', '', null, null);
+    await selectTopic(null, '__free__', '好的呀，今天我听您的。', '', null, null);
 }
 
 async function selectTopic(topicId, topic, greeting, context, ageStart, ageEnd) {
