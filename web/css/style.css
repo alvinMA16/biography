@@ -2252,11 +2252,35 @@ body {
 .admin-header-left {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
 }
 
 .admin-header-left h1 {
     margin: 0;
+}
+
+.admin-back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: var(--color-bg-dark);
+    border-radius: 10px;
+    color: var(--color-text-light);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.admin-back-btn:hover {
+    background: var(--color-accent);
+    color: white;
+    transform: translateX(-2px);
+}
+
+.admin-back-btn svg {
+    flex-shrink: 0;
 }
 
 .admin-detail-actions {
