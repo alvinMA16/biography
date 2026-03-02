@@ -102,7 +102,7 @@ async function loadUsers() {
 function renderUserTable(users) {
     const tbody = document.getElementById('userTableBody');
     if (!users.length) {
-        tbody.innerHTML = '<tr><td colspan="10" class="admin-table-empty">暂无用户</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="admin-table-empty">暂无用户</td></tr>';
         return;
     }
     tbody.innerHTML = users.map(u => {
@@ -113,8 +113,6 @@ function renderUserTable(users) {
             <td>${u.phone || '-'}</td>
             <td>${u.nickname || '<span class="text-muted">-</span>'}</td>
             <td>${u.birth_year || '<span class="text-muted">-</span>'}</td>
-            <td>${u.hometown || '<span class="text-muted">-</span>'}</td>
-            <td>${u.main_city || '<span class="text-muted">-</span>'}</td>
             <td><span class="admin-badge ${u.profile_completed ? 'badge-yes' : 'badge-no'}">${u.profile_completed ? '已完成' : '未完成'}</span></td>
             <td><span class="admin-badge ${isActive ? 'badge-yes' : 'badge-no'}">${isActive ? '正常' : '已禁用'}</span></td>
             <td>${u.conversation_count} / ${u.memoir_count}</td>
@@ -240,6 +238,10 @@ async function toggleUserActive(userId, label) {
         });
         await loadUsers();
         logsLoaded = false;
+        // 如果在详情页，刷新详情
+        if (currentUserDetail && currentUserDetail.id === userId) {
+            viewUserDetail(userId);
+        }
     } catch (e) {
         alert(`${action}失败：` + e.message);
     }
@@ -299,6 +301,10 @@ async function saveEdit() {
         closeEditModal();
         await loadUsers();
         logsLoaded = false;
+        // 如果在详情页，刷新详情
+        if (currentUserDetail && currentUserDetail.id === userId) {
+            viewUserDetail(userId);
+        }
     } catch (e) {
         alert('保存失败：' + e.message);
     }
@@ -478,6 +484,8 @@ async function deleteEraMemory(id) {
 
 // ========== 数据监控 ==========
 
+const DONUT_COLORS = ['#8b4513', '#cd853f', '#d2691e', '#deb887', '#f4a460', '#c9a86c', '#a0522d', '#bc8f8f'];
+
 async function loadMonitoringData() {
     try {
         const data = await adminRequest('/admin/monitoring');
@@ -495,39 +503,105 @@ function refreshMonitoring() {
 }
 
 function renderMonitoringData(data) {
-    // 总体概览
+    // 核心指标
     document.getElementById('statTotalUsers').textContent = data.overview.total_users;
-    document.getElementById('statProfileCompleted').textContent = data.overview.profile_completed_users;
-    document.getElementById('statProfileRate').textContent = `完成率 ${(data.overview.profile_completion_rate * 100).toFixed(0)}%`;
+    document.getElementById('statProfileRate').textContent = `${(data.overview.profile_completion_rate * 100).toFixed(0)}%`;
     document.getElementById('statTotalConversations').textContent = data.overview.total_conversations;
     document.getElementById('statTotalMemoirs').textContent = data.overview.total_memoirs;
-
-    // 活跃度
     document.getElementById('statTodayActive').textContent = data.activity.today_active_users;
     document.getElementById('statWeekActive').textContent = data.activity.week_active_users;
-    document.getElementById('statMonthActive').textContent = data.activity.month_active_users;
-    document.getElementById('statTodayConv').textContent = data.activity.today_new_conversations;
-    document.getElementById('statTodayMemoir').textContent = data.activity.today_new_memoirs;
+    document.getElementById('statTodayConv').textContent = `+${data.activity.today_new_conversations}`;
+    document.getElementById('statTodayMemoir').textContent = `+${data.activity.today_new_memoirs}`;
 
-    // 留存率
-    document.getElementById('statRetention1').textContent = formatRetention(data.retention.day1);
-    document.getElementById('statRetention7').textContent = formatRetention(data.retention.day7);
-    document.getElementById('statRetention30').textContent = formatRetention(data.retention.day30);
+    // 留存率可视化
+    renderRetentionVisual(data.retention);
 
-    // 分布图
-    renderDistribution('distConversations', data.distributions.conversations_per_user, 'avgConversations', data.overview.total_conversations, data.overview.total_users, '次对话/人');
-    renderDistribution('distMemoirs', data.distributions.memoirs_per_user, 'avgMemoirs', data.overview.total_memoirs, data.overview.total_users, '篇回忆/人');
-    renderDistribution('distMessages', data.distributions.messages_per_conversation, 'avgMessages', null, null, null);
-    renderDistribution('distBirthDecade', data.distributions.birth_decade);
-    renderDistribution('distHometown', data.distributions.hometown_province);
+    // 用户画像图表
+    renderDonutChart('birthDecadeDonut', 'birthDecadeLegend', data.distributions.birth_decade);
+    renderDonutChart('hometownDonut', 'hometownLegend', data.distributions.hometown_province);
+
+    // 使用情况分布
+    renderUsageBars('distConversations', data.distributions.conversations_per_user, 'avgConversations', data.overview.total_conversations, data.overview.total_users, '次/人');
+    renderUsageBars('distMemoirs', data.distributions.memoirs_per_user, 'avgMemoirs', data.overview.total_memoirs, data.overview.total_users, '篇/人');
+    renderUsageBars('distMessages', data.distributions.messages_per_conversation, 'avgMessages', null, null, null);
 }
 
-function formatRetention(value) {
-    if (value === null || value === undefined) return '-';
-    return `${(value * 100).toFixed(0)}%`;
+function renderRetentionVisual(retention) {
+    const day1 = retention.day1 ?? 0;
+    const day7 = retention.day7 ?? 0;
+    const day30 = retention.day30 ?? 0;
+
+    // 文字
+    document.getElementById('statRetention1').textContent = formatRetention(day1);
+    document.getElementById('statRetention7').textContent = formatRetention(day7);
+    document.getElementById('statRetention30').textContent = formatRetention(day30);
+    document.getElementById('statRetention7Display').textContent = formatRetention(day7);
+
+    // 环形图 (7日留存)
+    const ring = document.getElementById('retention7Ring');
+    if (ring) {
+        const circumference = 314; // 2 * π * 50
+        const offset = circumference * (1 - day7);
+        ring.style.strokeDashoffset = offset;
+    }
+
+    // 条形图
+    setTimeout(() => {
+        const bar1 = document.getElementById('retention1Bar');
+        const bar7 = document.getElementById('retention7Bar');
+        const bar30 = document.getElementById('retention30Bar');
+        if (bar1) bar1.style.width = `${day1 * 100}%`;
+        if (bar7) bar7.style.width = `${day7 * 100}%`;
+        if (bar30) bar30.style.width = `${day30 * 100}%`;
+    }, 100);
 }
 
-function renderDistribution(containerId, items, avgId, totalItems, totalUsers, avgUnit) {
+function renderDonutChart(chartId, legendId, items) {
+    const chartEl = document.getElementById(chartId);
+    const legendEl = document.getElementById(legendId);
+
+    if (!items || items.length === 0) {
+        chartEl.innerHTML = '<div class="admin-empty-state" style="padding:40px 0;">暂无数据</div>';
+        legendEl.innerHTML = '';
+        return;
+    }
+
+    const total = items.reduce((sum, i) => sum + i.count, 0);
+    if (total === 0) {
+        chartEl.innerHTML = '<div class="admin-empty-state" style="padding:40px 0;">暂无数据</div>';
+        legendEl.innerHTML = '';
+        return;
+    }
+
+    // 生成环形图
+    const radius = 50;
+    const circumference = 2 * Math.PI * radius;
+    let offset = 0;
+
+    const paths = items.map((item, idx) => {
+        const percent = item.count / total;
+        const dashLength = circumference * percent;
+        const color = DONUT_COLORS[idx % DONUT_COLORS.length];
+        const path = `<circle cx="70" cy="70" r="${radius}" fill="none" stroke="${color}" stroke-width="20"
+            stroke-dasharray="${dashLength} ${circumference}" stroke-dashoffset="${-offset}"/>`;
+        offset += dashLength;
+        return path;
+    }).join('');
+
+    chartEl.innerHTML = `<svg viewBox="0 0 140 140">${paths}</svg>`;
+
+    // 生成图例
+    legendEl.innerHTML = items.slice(0, 6).map((item, idx) => {
+        const color = DONUT_COLORS[idx % DONUT_COLORS.length];
+        const percent = ((item.count / total) * 100).toFixed(0);
+        return `<div class="admin-legend-item">
+            <span class="admin-legend-dot" style="background:${color}"></span>
+            <span>${item.label} ${percent}%</span>
+        </div>`;
+    }).join('');
+}
+
+function renderUsageBars(containerId, items, avgId, totalItems, totalUsers, avgUnit) {
     const container = document.getElementById(containerId);
     if (!items || items.length === 0) {
         container.innerHTML = '<div class="admin-empty-state">暂无数据</div>';
@@ -538,13 +612,14 @@ function renderDistribution(containerId, items, avgId, totalItems, totalUsers, a
 
     container.innerHTML = items.map(item => {
         const percent = maxCount > 0 ? (item.count / maxCount * 100) : 0;
+        const isNarrow = percent < 15;
         return `
-            <div class="admin-dist-row">
-                <div class="admin-dist-label">${item.label}</div>
-                <div class="admin-dist-bar-wrap">
-                    <div class="admin-dist-bar" style="width: ${percent}%"></div>
+            <div class="admin-usage-row">
+                <div class="admin-usage-label">${item.label}</div>
+                <div class="admin-usage-bar-wrap">
+                    <div class="admin-usage-bar ${isNarrow ? 'narrow' : ''}" style="width: ${percent}%" data-count="${item.count}"></div>
                 </div>
-                <div class="admin-dist-count">${item.count}</div>
+                ${isNarrow ? `<div class="admin-usage-count">${item.count}</div>` : ''}
             </div>
         `;
     }).join('');
@@ -552,8 +627,13 @@ function renderDistribution(containerId, items, avgId, totalItems, totalUsers, a
     // 平均值
     if (avgId && totalItems !== null && totalUsers !== null && totalUsers > 0) {
         const avg = (totalItems / totalUsers).toFixed(1);
-        document.getElementById(avgId).textContent = `平均 ${avg} ${avgUnit}`;
+        document.getElementById(avgId).textContent = `均 ${avg} ${avgUnit}`;
     }
+}
+
+function formatRetention(value) {
+    if (value === null || value === undefined) return '-';
+    return `${(value * 100).toFixed(0)}%`;
 }
 
 async function showRetentionMatrix() {
@@ -646,17 +726,40 @@ function renderUserDetail(detail) {
     const title = detail.nickname || detail.phone || '用户详情';
     document.getElementById('userDetailTitle').textContent = title;
 
+    // 概览卡片
+    document.getElementById('detailName').textContent = detail.nickname || detail.phone || '-';
+
+    // 出生年份和位置
+    const birthText = detail.birth_year ? `${detail.birth_year}年生` : '未填写';
+    const locationParts = [detail.hometown, detail.main_city].filter(Boolean);
+    const locationText = locationParts.length > 0 ? locationParts.join(' → ') : '未填写';
+
+    document.getElementById('detailBirthYearMeta').textContent = birthText;
+    document.getElementById('detailLocationMeta').textContent = locationText;
+
+    // 状态徽章
+    document.getElementById('detailStatusBadge').className = `admin-badge ${detail.is_active ? 'badge-yes' : 'badge-no'}`;
+    document.getElementById('detailStatusBadge').textContent = detail.is_active ? '正常' : '已禁用';
+    document.getElementById('detailProfileBadge').className = `admin-badge ${detail.profile_completed ? 'badge-yes' : 'badge-no'}`;
+    document.getElementById('detailProfileBadge').textContent = detail.profile_completed ? '资料完整' : '资料未完成';
+
+    // 统计数据
+    document.getElementById('detailConvCount').textContent = detail.conversations ? detail.conversations.length : 0;
+    document.getElementById('detailMemoirCount').textContent = detail.memoirs ? detail.memoirs.length : 0;
+
+    // 计算活跃天数
+    const activeDays = calculateActiveDays(detail.conversations);
+    document.getElementById('detailDaysActive').textContent = activeDays;
+
     // 账号信息
     document.getElementById('detailPhone').textContent = detail.phone || '-';
-    document.getElementById('detailStatus').innerHTML = detail.is_active
-        ? '<span class="admin-badge badge-yes">正常</span>'
-        : '<span class="admin-badge badge-no">已禁用</span>';
-    document.getElementById('detailProfileStatus').innerHTML = detail.profile_completed
-        ? '<span class="admin-badge badge-yes">已完成</span>'
-        : '<span class="admin-badge badge-no">未完成</span>';
     document.getElementById('detailCreatedAt').textContent = detail.created_at
         ? new Date(detail.created_at).toLocaleString('zh-CN')
         : '-';
+
+    // 最后活跃时间
+    const lastActive = getLastActiveTime(detail.conversations);
+    document.getElementById('detailLastActive').textContent = lastActive;
 
     // 基础信息
     document.getElementById('detailNickname').textContent = detail.nickname || '-';
@@ -667,6 +770,35 @@ function renderUserDetail(detail) {
     // 回忆列表
     document.getElementById('memoirCount').textContent = detail.memoirs.length;
     renderMemoirList(detail.memoirs, detail.conversations);
+
+    // 头部操作按钮
+    const isActive = detail.is_active !== false;
+    const label = (detail.phone || detail.nickname || '').replace(/'/g, "\\'");
+    document.getElementById('userDetailActions').innerHTML = `
+        <button class="admin-btn admin-btn-sm" onclick="showEditModal('${detail.id}')">编辑</button>
+        <button class="admin-btn admin-btn-sm ${isActive ? 'admin-btn-warn' : ''}" onclick="toggleUserActive('${detail.id}', '${label}')">${isActive ? '禁用' : '启用'}</button>
+    `;
+}
+
+function calculateActiveDays(conversations) {
+    if (!conversations || conversations.length === 0) return 0;
+    const days = new Set();
+    conversations.forEach(c => {
+        if (c.created_at) {
+            const date = new Date(c.created_at).toLocaleDateString('zh-CN');
+            days.add(date);
+        }
+    });
+    return days.size;
+}
+
+function getLastActiveTime(conversations) {
+    if (!conversations || conversations.length === 0) return '暂无活动';
+    const sorted = [...conversations].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    if (sorted[0] && sorted[0].created_at) {
+        return new Date(sorted[0].created_at).toLocaleString('zh-CN');
+    }
+    return '暂无活动';
 }
 
 function renderMemoirList(memoirs, conversations) {
@@ -681,29 +813,56 @@ function renderMemoirList(memoirs, conversations) {
     const convMap = {};
     conversations.forEach(c => { convMap[c.id] = c; });
 
-    container.innerHTML = memoirs.map(m => {
-        const isGenerating = m.status === 'generating';
-        const yearText = formatYearRange(m.year_start, m.year_end, m.time_period);
-        const timeText = formatTimeRange(m.conversation_start, m.conversation_end);
+    // 按年代分组
+    const grouped = {};
+    memoirs.forEach(m => {
+        const decade = m.year_start ? `${Math.floor(m.year_start / 10) * 10}年代` : '未知时期';
+        if (!grouped[decade]) grouped[decade] = [];
+        grouped[decade].push(m);
+    });
 
-        return `
-            <div class="admin-memoir-item ${isGenerating ? 'generating' : ''}" onclick="showMemoirDetail('${m.id}')">
-                <div class="admin-memoir-item-main">
-                    <div class="admin-memoir-item-title">
-                        <span class="title-text">${escapeHtml(m.title)}</span>
-                        ${isGenerating ? '<span class="admin-memoir-status">撰写中...</span>' : ''}
-                    </div>
-                    ${yearText ? `<div class="admin-memoir-item-year">${yearText}</div>` : ''}
-                    ${timeText ? `<div class="admin-memoir-item-time">${timeText}</div>` : ''}
-                </div>
-                <div class="admin-memoir-item-arrow">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M9 18l6-6-6-6"/>
-                    </svg>
+    // 排序年代
+    const decades = Object.keys(grouped).sort((a, b) => {
+        if (a === '未知时期') return 1;
+        if (b === '未知时期') return -1;
+        return parseInt(a) - parseInt(b);
+    });
+
+    container.innerHTML = `<div class="admin-memoir-timeline">
+        ${decades.map(decade => `
+            <div class="admin-timeline-group">
+                <div class="admin-timeline-header">${decade}</div>
+                <div class="admin-timeline-items">
+                    ${grouped[decade].map(m => {
+                        const isGenerating = m.status === 'generating';
+                        const yearText = formatYearRange(m.year_start, m.year_end, m.time_period);
+                        const timeText = formatTimeRange(m.conversation_start, m.conversation_end);
+
+                        return `
+                            <div class="admin-timeline-item ${isGenerating ? 'generating' : ''}" onclick="showMemoirDetail('${m.id}')">
+                                <div class="admin-timeline-dot"></div>
+                                <div class="admin-timeline-content">
+                                    <div class="admin-timeline-title">
+                                        <span class="title-text">${escapeHtml(m.title)}</span>
+                                        ${isGenerating ? '<span class="admin-memoir-status">撰写中...</span>' : ''}
+                                    </div>
+                                    <div class="admin-timeline-meta">
+                                        ${yearText ? `<span class="meta-year">${yearText}</span>` : ''}
+                                        ${timeText ? `<span class="meta-time">${timeText}</span>` : ''}
+                                    </div>
+                                </div>
+                                <div class="admin-timeline-arrow">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M9 18l6-6-6-6"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
                 </div>
             </div>
-        `;
-    }).join('');
+        `).join('')}
+    </div>`;
 }
 
 function formatYearRange(yearStart, yearEnd, timePeriod) {

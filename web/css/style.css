@@ -1750,33 +1750,163 @@ body {
 .admin-monitoring-content {
     display: flex;
     flex-direction: column;
-    gap: 28px;
+    gap: 24px;
+}
+
+/* 核心指标概览 */
+.admin-metrics-overview {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+
+.admin-metric-card {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.admin-metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+
+.admin-metric-card.admin-metric-primary {
+    background: linear-gradient(135deg, #8b4513 0%, #a0522d 100%);
+    color: white;
+}
+
+.admin-metric-card.admin-metric-primary .admin-metric-icon {
+    background: rgba(255,255,255,0.2);
+    color: white;
+}
+
+.admin-metric-card.admin-metric-primary .admin-metric-value,
+.admin-metric-card.admin-metric-primary .admin-metric-label {
+    color: white;
+}
+
+.admin-metric-card.admin-metric-primary .admin-metric-tag {
+    background: rgba(255,255,255,0.25);
+    color: white;
+}
+
+.admin-metric-card.admin-metric-primary .admin-metric-desc {
+    color: rgba(255,255,255,0.8);
+}
+
+.admin-metric-icon {
+    width: 44px;
+    height: 44px;
+    background: var(--color-bg-dark);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-accent);
+}
+
+.admin-metric-icon svg {
+    width: 22px;
+    height: 22px;
+}
+
+.admin-metric-content {
+    flex: 1;
+}
+
+.admin-metric-value {
+    font-size: 2em;
+    font-weight: 600;
+    color: var(--color-text);
+    line-height: 1.1;
+}
+
+.admin-metric-label {
+    font-size: 0.85em;
+    color: var(--color-text-light);
+    margin-top: 4px;
+}
+
+.admin-metric-extra {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--color-border);
+}
+
+.admin-metric-card.admin-metric-primary .admin-metric-extra {
+    border-top-color: rgba(255,255,255,0.2);
+}
+
+.admin-metric-tag {
+    background: rgba(139, 69, 19, 0.1);
+    color: var(--color-accent);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 500;
+}
+
+.admin-metric-highlight {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--color-accent);
+}
+
+.admin-metric-sub {
+    font-size: 1em;
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.admin-metric-desc {
+    font-size: 0.78em;
+    color: var(--color-text-light);
+}
+
+/* 双栏网格 */
+.admin-monitor-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: 20px;
 }
 
 .admin-monitor-section {
     background: white;
-    border-radius: 12px;
-    padding: 20px 24px;
-    box-shadow: 0 1px 12px rgba(0,0,0,0.05);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
 }
 
-.admin-monitor-section-title {
-    font-family: var(--font-sans);
-    font-size: 0.95em;
-    font-weight: 500;
-    color: var(--color-text);
-    margin: 0 0 16px 0;
+.admin-section-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.admin-section-header h3 {
+    font-family: var(--font-sans);
+    font-size: 1em;
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0;
 }
 
 .admin-btn-link {
     background: none;
     border: none;
     color: var(--color-accent);
-    padding: 4px 8px;
-    font-size: 0.85em;
+    padding: 4px 10px;
+    font-size: 0.82em;
+    cursor: pointer;
 }
 
 .admin-btn-link:hover {
@@ -1785,111 +1915,247 @@ body {
     border: none;
 }
 
-/* 统计卡片 */
-.admin-stat-cards {
+/* 留存可视化 */
+.admin-retention-visual {
     display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
+    gap: 24px;
+    align-items: center;
 }
 
-.admin-stat-card {
-    flex: 1;
-    min-width: 120px;
-    max-width: 180px;
-    background: var(--color-bg-dark);
-    border-radius: 10px;
-    padding: 16px 20px;
-    text-align: center;
+.admin-retention-ring {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    flex-shrink: 0;
 }
 
-.admin-stat-value {
-    font-size: 1.8em;
+.admin-retention-ring svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.admin-retention-ring .ring-bg {
+    stroke: var(--color-bg-dark);
+}
+
+.admin-retention-ring .ring-fill {
+    stroke: var(--color-accent);
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.8s ease;
+}
+
+.admin-retention-ring-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.admin-retention-ring-label .ring-value {
+    font-size: 1.5em;
     font-weight: 600;
     color: var(--color-text);
-    margin-bottom: 4px;
 }
 
-.admin-stat-label {
+.admin-retention-ring-label .ring-text {
+    font-size: 0.75em;
+    color: var(--color-text-light);
+}
+
+.admin-retention-list {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.admin-retention-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.retention-day {
+    width: 36px;
     font-size: 0.82em;
     color: var(--color-text-light);
 }
 
-.admin-stat-sub {
-    font-size: 0.75em;
-    color: var(--color-accent);
-    margin-top: 4px;
-}
-
-/* 分布图 */
-.admin-dist-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
-}
-
-.admin-dist-card {
+.retention-bar-wrap {
+    flex: 1;
+    height: 8px;
     background: var(--color-bg-dark);
-    border-radius: 10px;
-    padding: 16px 20px;
+    border-radius: 4px;
+    overflow: hidden;
 }
 
-.admin-dist-card h4 {
-    font-family: var(--font-sans);
+.retention-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-accent), #d2691e);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+    width: 0;
+}
+
+.retention-value {
+    width: 40px;
     font-size: 0.88em;
     font-weight: 500;
     color: var(--color-text);
-    margin: 0 0 14px 0;
+    text-align: right;
 }
 
-.admin-dist-chart {
+/* 用户画像 */
+.admin-profile-charts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+.admin-profile-chart {
+    text-align: center;
+}
+
+.admin-profile-chart h4 {
+    font-size: 0.85em;
+    font-weight: 500;
+    color: var(--color-text-light);
+    margin: 0 0 16px 0;
+}
+
+.admin-donut-chart {
+    width: 140px;
+    height: 140px;
+    margin: 0 auto 16px;
+    position: relative;
+}
+
+.admin-donut-chart svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.admin-donut-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px 16px;
+}
+
+.admin-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78em;
+    color: var(--color-text-light);
+}
+
+.admin-legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+/* 使用情况分布 */
+.admin-usage-section {
+    margin-top: 4px;
+}
+
+.admin-usage-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+.admin-usage-card {
+    background: var(--color-bg-dark);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.admin-usage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.admin-usage-card h4 {
+    font-size: 0.88em;
+    font-weight: 500;
+    color: var(--color-text);
+    margin: 0 0 4px 0;
+}
+
+.admin-usage-avg {
+    font-size: 0.78em;
+    color: var(--color-accent);
+    font-weight: 500;
+}
+
+.admin-usage-bars {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
 }
 
-.admin-dist-row {
+.admin-usage-row {
     display: flex;
     align-items: center;
     gap: 10px;
 }
 
-.admin-dist-label {
-    width: 50px;
-    font-size: 0.82em;
+.admin-usage-label {
+    width: 48px;
+    font-size: 0.8em;
     color: var(--color-text-light);
     text-align: right;
     flex-shrink: 0;
 }
 
-.admin-dist-bar-wrap {
+.admin-usage-bar-wrap {
     flex: 1;
-    height: 18px;
-    background: rgba(0,0,0,0.04);
-    border-radius: 4px;
+    height: 20px;
+    background: rgba(255,255,255,0.6);
+    border-radius: 6px;
     overflow: hidden;
+    position: relative;
 }
 
-.admin-dist-bar {
+.admin-usage-bar {
     height: 100%;
-    background: var(--color-accent);
-    opacity: 0.7;
-    border-radius: 4px;
-    transition: width 0.3s ease;
+    background: linear-gradient(90deg, var(--color-accent), #cd853f);
+    border-radius: 6px;
+    transition: width 0.5s ease;
+    position: relative;
 }
 
-.admin-dist-count {
-    width: 36px;
-    font-size: 0.82em;
+.admin-usage-bar::after {
+    content: attr(data-count);
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.75em;
+    font-weight: 500;
+    color: white;
+}
+
+.admin-usage-bar.narrow::after {
+    right: -24px;
+    color: var(--color-text);
+}
+
+.admin-usage-count {
+    width: 28px;
+    font-size: 0.8em;
     color: var(--color-text);
     text-align: right;
     flex-shrink: 0;
-}
-
-.admin-dist-avg {
-    margin-top: 12px;
-    font-size: 0.78em;
-    color: var(--color-text-light);
-    text-align: right;
 }
 
 /* 留存矩阵弹窗 */
@@ -1942,20 +2208,37 @@ body {
     color: #999;
 }
 
-/* 响应式 */
-@media (max-width: 768px) {
-    .admin-stat-cards {
-        flex-wrap: wrap;
+/* 响应式 - 数据监控页 */
+@media (max-width: 1200px) {
+    .admin-metrics-overview {
+        grid-template-columns: repeat(2, 1fr);
     }
 
-    .admin-stat-card {
-        min-width: 100px;
-        max-width: none;
-        flex: 1 1 calc(50% - 8px);
-    }
-
-    .admin-dist-grid {
+    .admin-monitor-grid {
         grid-template-columns: 1fr;
+    }
+
+    .admin-usage-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .admin-metrics-overview {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-metric-card {
+        padding: 16px;
+    }
+
+    .admin-retention-visual {
+        flex-direction: column;
+    }
+
+    .admin-profile-charts {
+        grid-template-columns: 1fr;
+        gap: 32px;
     }
 
     .admin-retention-modal {
@@ -1976,6 +2259,11 @@ body {
     margin: 0;
 }
 
+.admin-detail-actions {
+    display: flex;
+    gap: 8px;
+}
+
 .admin-btn-primary {
     background: var(--color-accent);
     color: white;
@@ -1994,11 +2282,114 @@ body {
     gap: 20px;
 }
 
-.admin-user-info-card,
-.admin-memoir-list-card {
+/* 用户概览卡片 */
+.admin-user-profile-card {
     background: white;
-    border-radius: 12px;
-    box-shadow: 0 1px 12px rgba(0,0,0,0.05);
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    padding: 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+}
+
+.admin-profile-main {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.admin-profile-avatar {
+    width: 72px;
+    height: 72px;
+    background: linear-gradient(135deg, var(--color-bg-dark) 0%, #e8e0d8 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-accent);
+    flex-shrink: 0;
+}
+
+.admin-profile-avatar svg {
+    width: 36px;
+    height: 36px;
+}
+
+.admin-profile-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.admin-profile-name {
+    font-size: 1.4em;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.admin-profile-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.88em;
+    color: var(--color-text-light);
+}
+
+.admin-profile-meta .meta-divider {
+    width: 4px;
+    height: 4px;
+    background: var(--color-border);
+    border-radius: 50%;
+}
+
+.admin-profile-badges {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.admin-profile-stats {
+    display: flex;
+    gap: 32px;
+}
+
+.admin-profile-stat {
+    text-align: center;
+    padding: 0 16px;
+    border-left: 1px solid var(--color-border);
+}
+
+.admin-profile-stat:first-child {
+    border-left: none;
+}
+
+.admin-profile-stat .stat-value {
+    font-size: 1.8em;
+    font-weight: 600;
+    color: var(--color-accent);
+    line-height: 1.2;
+}
+
+.admin-profile-stat .stat-label {
+    font-size: 0.82em;
+    color: var(--color-text-light);
+    margin-top: 4px;
+}
+
+/* 详情双栏 */
+.admin-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.admin-user-info-card,
+.admin-memoir-timeline-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
     overflow: hidden;
 }
 
@@ -2015,7 +2406,7 @@ body {
     margin: 0;
     font-family: var(--font-sans);
     font-size: 0.95em;
-    font-weight: 500;
+    font-weight: 600;
     color: var(--color-text);
 }
 
@@ -2023,13 +2414,44 @@ body {
     background: var(--color-accent);
     color: white;
     font-size: 0.78em;
-    padding: 2px 10px;
+    padding: 3px 12px;
     border-radius: 12px;
     font-weight: 500;
 }
 
 .admin-card-body {
     padding: 20px;
+}
+
+/* 信息列表样式 */
+.admin-info-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.admin-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.admin-info-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.admin-info-row label {
+    font-size: 0.88em;
+    color: var(--color-text-light);
+}
+
+.admin-info-row span {
+    font-size: 0.95em;
+    color: var(--color-text);
+    font-weight: 500;
 }
 
 .admin-info-grid {
@@ -2061,7 +2483,133 @@ body {
     font-size: 0.9em;
 }
 
-/* 回忆列表项 */
+/* 回忆时间线 */
+.admin-memoir-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.admin-timeline-group {
+    position: relative;
+}
+
+.admin-timeline-header {
+    font-size: 0.85em;
+    font-weight: 600;
+    color: var(--color-accent);
+    background: rgba(139, 69, 19, 0.08);
+    padding: 6px 14px;
+    border-radius: 16px;
+    display: inline-block;
+    margin-bottom: 16px;
+}
+
+.admin-timeline-items {
+    position: relative;
+    padding-left: 24px;
+}
+
+.admin-timeline-items::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--color-border);
+}
+
+.admin-timeline-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    background: var(--color-bg-dark);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.admin-timeline-item:last-child {
+    margin-bottom: 0;
+}
+
+.admin-timeline-item:hover {
+    background: #ede8e0;
+    transform: translateX(4px);
+}
+
+.admin-timeline-item.generating {
+    opacity: 0.7;
+}
+
+.admin-timeline-dot {
+    position: absolute;
+    left: -21px;
+    width: 12px;
+    height: 12px;
+    background: white;
+    border: 3px solid var(--color-accent);
+    border-radius: 50%;
+    z-index: 1;
+}
+
+.admin-timeline-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.admin-timeline-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+
+.admin-timeline-title .title-text {
+    font-size: 0.95em;
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.admin-memoir-status {
+    font-size: 0.75em;
+    color: var(--color-accent);
+    background: rgba(139, 69, 19, 0.12);
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.admin-timeline-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.82em;
+}
+
+.admin-timeline-meta .meta-year {
+    color: var(--color-accent);
+}
+
+.admin-timeline-meta .meta-time {
+    color: var(--color-text-light);
+}
+
+.admin-timeline-arrow {
+    color: var(--color-text-light);
+    flex-shrink: 0;
+    margin-left: 12px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.admin-timeline-item:hover .admin-timeline-arrow {
+    opacity: 1;
+}
+
+/* 旧的回忆列表项样式（保留兼容） */
 .admin-memoir-item {
     display: flex;
     align-items: center;
@@ -2100,14 +2648,6 @@ body {
     font-size: 0.95em;
     font-weight: 500;
     color: var(--color-text);
-}
-
-.admin-memoir-status {
-    font-size: 0.78em;
-    color: var(--color-accent);
-    background: rgba(139, 69, 19, 0.08);
-    padding: 2px 8px;
-    border-radius: 10px;
 }
 
 .admin-memoir-item-year {
@@ -2253,7 +2793,30 @@ body {
     white-space: pre-wrap;
 }
 
-/* 响应式 */
+/* 响应式 - 用户详情页 */
+@media (max-width: 900px) {
+    .admin-user-profile-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .admin-profile-stats {
+        width: 100%;
+        justify-content: flex-start;
+        padding-top: 20px;
+        border-top: 1px solid var(--color-border);
+    }
+
+    .admin-profile-stat:first-child {
+        border-left: none;
+        padding-left: 0;
+    }
+
+    .admin-detail-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 768px) {
     .admin-header-left {
         gap: 12px;
@@ -2272,10 +2835,38 @@ body {
         margin: 0 8px;
         max-height: 90vh;
     }
+
+    .admin-profile-main {
+        flex-direction: column;
+        align-items: flex-start;
+        text-align: left;
+    }
+
+    .admin-profile-stats {
+        gap: 16px;
+    }
+
+    .admin-profile-stat {
+        padding: 0 12px;
+    }
 }
 
 @media (max-width: 480px) {
     .admin-info-grid {
         grid-template-columns: 1fr;
+    }
+
+    .admin-profile-avatar {
+        width: 56px;
+        height: 56px;
+    }
+
+    .admin-profile-avatar svg {
+        width: 28px;
+        height: 28px;
+    }
+
+    .admin-profile-name {
+        font-size: 1.2em;
     }
 }

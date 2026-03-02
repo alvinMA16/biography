@@ -70,8 +70,6 @@
                                         <th>手机号</th>
                                         <th>昵称</th>
                                         <th>出生年份</th>
-                                        <th>家乡</th>
-                                        <th>常住城市</th>
                                         <th>资料状态</th>
                                         <th>账号状态</th>
                                         <th>对话/回忆</th>
@@ -80,7 +78,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="userTableBody">
-                                    <tr><td colspan="10" class="admin-table-empty">加载中...</td></tr>
+                                    <tr><td colspan="8" class="admin-table-empty">加载中...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -149,112 +147,150 @@
                         </button>
                     </header>
                     <div class="admin-panel-content admin-monitoring-content">
-                        <!-- 总体概览 -->
-                        <div class="admin-monitor-section">
-                            <h3 class="admin-monitor-section-title">总体概览</h3>
-                            <div class="admin-stat-cards">
-                                <div class="admin-stat-card">
-                                    <div class="admin-stat-value" id="statTotalUsers">-</div>
-                                    <div class="admin-stat-label">总用户数</div>
+                        <!-- 核心指标概览 -->
+                        <div class="admin-metrics-overview">
+                            <div class="admin-metric-card admin-metric-primary">
+                                <div class="admin-metric-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
                                 </div>
-                                <div class="admin-stat-card">
-                                    <div class="admin-stat-value" id="statProfileCompleted">-</div>
-                                    <div class="admin-stat-label">已完成资料</div>
-                                    <div class="admin-stat-sub" id="statProfileRate">-</div>
+                                <div class="admin-metric-content">
+                                    <div class="admin-metric-value" id="statTotalUsers">-</div>
+                                    <div class="admin-metric-label">总用户</div>
                                 </div>
-                                <div class="admin-stat-card">
-                                    <div class="admin-stat-value" id="statTotalConversations">-</div>
-                                    <div class="admin-stat-label">总对话数</div>
+                                <div class="admin-metric-extra">
+                                    <span class="admin-metric-tag" id="statProfileRate">-</span>
+                                    <span class="admin-metric-desc">资料完成率</span>
                                 </div>
-                                <div class="admin-stat-card">
-                                    <div class="admin-stat-value" id="statTotalMemoirs">-</div>
-                                    <div class="admin-stat-label">总回忆录数</div>
+                            </div>
+                            <div class="admin-metric-card">
+                                <div class="admin-metric-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                                </div>
+                                <div class="admin-metric-content">
+                                    <div class="admin-metric-value" id="statTotalConversations">-</div>
+                                    <div class="admin-metric-label">总对话</div>
+                                </div>
+                                <div class="admin-metric-extra">
+                                    <span class="admin-metric-highlight" id="statTodayConv">-</span>
+                                    <span class="admin-metric-desc">今日新增</span>
+                                </div>
+                            </div>
+                            <div class="admin-metric-card">
+                                <div class="admin-metric-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                </div>
+                                <div class="admin-metric-content">
+                                    <div class="admin-metric-value" id="statTotalMemoirs">-</div>
+                                    <div class="admin-metric-label">总回忆录</div>
+                                </div>
+                                <div class="admin-metric-extra">
+                                    <span class="admin-metric-highlight" id="statTodayMemoir">-</span>
+                                    <span class="admin-metric-desc">今日新增</span>
+                                </div>
+                            </div>
+                            <div class="admin-metric-card">
+                                <div class="admin-metric-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                                </div>
+                                <div class="admin-metric-content">
+                                    <div class="admin-metric-value" id="statTodayActive">-</div>
+                                    <div class="admin-metric-label">今日活跃</div>
+                                </div>
+                                <div class="admin-metric-extra">
+                                    <span class="admin-metric-sub" id="statWeekActive">-</span>
+                                    <span class="admin-metric-desc">7日活跃</span>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- 活跃度 -->
-                        <div class="admin-monitor-section">
-                            <h3 class="admin-monitor-section-title">活跃度</h3>
-                            <div class="admin-stat-cards">
-                                <div class="admin-stat-card">
-                                    <div class="admin-stat-value" id="statTodayActive">-</div>
-                                    <div class="admin-stat-label">今日活跃</div>
+                        <!-- 双栏布局：留存 + 用户画像 -->
+                        <div class="admin-monitor-grid">
+                            <!-- 用户留存 -->
+                            <div class="admin-monitor-section admin-retention-section">
+                                <div class="admin-section-header">
+                                    <h3>用户留存</h3>
+                                    <button class="admin-btn admin-btn-sm admin-btn-link" onclick="showRetentionMatrix()">详情</button>
                                 </div>
-                                <div class="admin-stat-card">
-                                    <div class="admin-stat-value" id="statWeekActive">-</div>
-                                    <div class="admin-stat-label">7日活跃</div>
+                                <div class="admin-retention-visual">
+                                    <div class="admin-retention-ring" id="retentionRing">
+                                        <svg viewBox="0 0 120 120">
+                                            <circle class="ring-bg" cx="60" cy="60" r="50" fill="none" stroke-width="10"/>
+                                            <circle class="ring-fill" cx="60" cy="60" r="50" fill="none" stroke-width="10"
+                                                stroke-dasharray="314" stroke-dashoffset="314" id="retention7Ring"/>
+                                        </svg>
+                                        <div class="admin-retention-ring-label">
+                                            <span class="ring-value" id="statRetention7Display">-</span>
+                                            <span class="ring-text">7日留存</span>
+                                        </div>
+                                    </div>
+                                    <div class="admin-retention-list">
+                                        <div class="admin-retention-item">
+                                            <span class="retention-day">次日</span>
+                                            <div class="retention-bar-wrap">
+                                                <div class="retention-bar" id="retention1Bar"></div>
+                                            </div>
+                                            <span class="retention-value" id="statRetention1">-</span>
+                                        </div>
+                                        <div class="admin-retention-item">
+                                            <span class="retention-day">7日</span>
+                                            <div class="retention-bar-wrap">
+                                                <div class="retention-bar" id="retention7Bar"></div>
+                                            </div>
+                                            <span class="retention-value" id="statRetention7">-</span>
+                                        </div>
+                                        <div class="admin-retention-item">
+                                            <span class="retention-day">30日</span>
+                                            <div class="retention-bar-wrap">
+                                                <div class="retention-bar" id="retention30Bar"></div>
+                                            </div>
+                                            <span class="retention-value" id="statRetention30">-</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="admin-stat-card">
-                                    <div class="admin-stat-value" id="statMonthActive">-</div>
-                                    <div class="admin-stat-label">30日活跃</div>
+                            </div>
+
+                            <!-- 用户画像 -->
+                            <div class="admin-monitor-section admin-profile-section">
+                                <div class="admin-section-header">
+                                    <h3>用户画像</h3>
                                 </div>
-                                <div class="admin-stat-card">
-                                    <div class="admin-stat-value" id="statTodayConv">-</div>
-                                    <div class="admin-stat-label">今日新对话</div>
-                                </div>
-                                <div class="admin-stat-card">
-                                    <div class="admin-stat-value" id="statTodayMemoir">-</div>
-                                    <div class="admin-stat-label">今日新回忆</div>
+                                <div class="admin-profile-charts">
+                                    <div class="admin-profile-chart">
+                                        <h4>出生年代</h4>
+                                        <div class="admin-donut-chart" id="birthDecadeDonut"></div>
+                                        <div class="admin-donut-legend" id="birthDecadeLegend"></div>
+                                    </div>
+                                    <div class="admin-profile-chart">
+                                        <h4>家乡分布</h4>
+                                        <div class="admin-donut-chart" id="hometownDonut"></div>
+                                        <div class="admin-donut-legend" id="hometownLegend"></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- 留存率 -->
-                        <div class="admin-monitor-section">
-                            <h3 class="admin-monitor-section-title">
-                                用户留存
-                                <button class="admin-btn admin-btn-sm admin-btn-link" onclick="showRetentionMatrix()">查看详情</button>
-                            </h3>
-                            <div class="admin-stat-cards">
-                                <div class="admin-stat-card">
-                                    <div class="admin-stat-value" id="statRetention1">-</div>
-                                    <div class="admin-stat-label">次日留存</div>
-                                </div>
-                                <div class="admin-stat-card">
-                                    <div class="admin-stat-value" id="statRetention7">-</div>
-                                    <div class="admin-stat-label">7日留存</div>
-                                </div>
-                                <div class="admin-stat-card">
-                                    <div class="admin-stat-value" id="statRetention30">-</div>
-                                    <div class="admin-stat-label">30日留存</div>
-                                </div>
+                        <!-- 使用情况分布 -->
+                        <div class="admin-monitor-section admin-usage-section">
+                            <div class="admin-section-header">
+                                <h3>使用情况分布</h3>
                             </div>
-                        </div>
-
-                        <!-- 分布统计 -->
-                        <div class="admin-monitor-section">
-                            <h3 class="admin-monitor-section-title">数据分布</h3>
-                            <div class="admin-dist-grid">
-                                <div class="admin-dist-card">
-                                    <h4>用户对话数分布</h4>
-                                    <div class="admin-dist-chart" id="distConversations"></div>
-                                    <div class="admin-dist-avg" id="avgConversations"></div>
+                            <div class="admin-usage-grid">
+                                <div class="admin-usage-card">
+                                    <div class="admin-usage-header">
+                                        <h4>每人对话数</h4>
+                                        <span class="admin-usage-avg" id="avgConversations">-</span>
+                                    </div>
+                                    <div class="admin-usage-bars" id="distConversations"></div>
                                 </div>
-                                <div class="admin-dist-card">
-                                    <h4>用户回忆录数分布</h4>
-                                    <div class="admin-dist-chart" id="distMemoirs"></div>
-                                    <div class="admin-dist-avg" id="avgMemoirs"></div>
+                                <div class="admin-usage-card">
+                                    <h4>每人回忆录数</h4>
+                                    <span class="admin-usage-avg" id="avgMemoirs">-</span>
+                                    <div class="admin-usage-bars" id="distMemoirs"></div>
                                 </div>
-                                <div class="admin-dist-card">
-                                    <h4>单次对话消息数分布</h4>
-                                    <div class="admin-dist-chart" id="distMessages"></div>
-                                    <div class="admin-dist-avg" id="avgMessages"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 用户分布 -->
-                        <div class="admin-monitor-section">
-                            <h3 class="admin-monitor-section-title">用户分布</h3>
-                            <div class="admin-dist-grid">
-                                <div class="admin-dist-card">
-                                    <h4>出生年代分布</h4>
-                                    <div class="admin-dist-chart" id="distBirthDecade"></div>
-                                </div>
-                                <div class="admin-dist-card">
-                                    <h4>家乡地区分布</h4>
-                                    <div class="admin-dist-chart" id="distHometown"></div>
+                                <div class="admin-usage-card">
+                                    <h4>每对话消息数</h4>
+                                    <span class="admin-usage-avg" id="avgMessages">-</span>
+                                    <div class="admin-usage-bars" id="distMessages"></div>
                                 </div>
                             </div>
                         </div>
@@ -273,65 +309,101 @@
                             </button>
                             <h1 id="userDetailTitle">用户详情</h1>
                         </div>
+                        <div class="admin-detail-actions" id="userDetailActions"></div>
                     </header>
                     <div class="admin-panel-content admin-user-detail-content">
-                        <!-- 用户基本信息卡片 -->
-                        <div class="admin-card admin-user-info-card">
-                            <div class="admin-card-header">
-                                <h3>账号信息</h3>
+                        <!-- 用户概览卡片 -->
+                        <div class="admin-user-profile-card">
+                            <div class="admin-profile-main">
+                                <div class="admin-profile-avatar" id="detailAvatar">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+                                        <circle cx="12" cy="7" r="4"/>
+                                    </svg>
+                                </div>
+                                <div class="admin-profile-info">
+                                    <div class="admin-profile-name" id="detailName">-</div>
+                                    <div class="admin-profile-meta">
+                                        <span class="meta-item" id="detailBirthYearMeta">-</span>
+                                        <span class="meta-divider"></span>
+                                        <span class="meta-item" id="detailLocationMeta">-</span>
+                                    </div>
+                                    <div class="admin-profile-badges">
+                                        <span class="admin-badge" id="detailStatusBadge">-</span>
+                                        <span class="admin-badge" id="detailProfileBadge">-</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="admin-card-body">
-                                <div class="admin-info-grid">
-                                    <div class="admin-info-item">
-                                        <label>手机号</label>
-                                        <span id="detailPhone">-</span>
+                            <div class="admin-profile-stats">
+                                <div class="admin-profile-stat">
+                                    <div class="stat-value" id="detailConvCount">0</div>
+                                    <div class="stat-label">对话</div>
+                                </div>
+                                <div class="admin-profile-stat">
+                                    <div class="stat-value" id="detailMemoirCount">0</div>
+                                    <div class="stat-label">回忆录</div>
+                                </div>
+                                <div class="admin-profile-stat">
+                                    <div class="stat-value" id="detailDaysActive">0</div>
+                                    <div class="stat-label">活跃天数</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 详细信息双栏 -->
+                        <div class="admin-detail-grid">
+                            <div class="admin-card admin-user-info-card">
+                                <div class="admin-card-header">
+                                    <h3>账号信息</h3>
+                                </div>
+                                <div class="admin-card-body">
+                                    <div class="admin-info-list">
+                                        <div class="admin-info-row">
+                                            <label>手机号</label>
+                                            <span id="detailPhone">-</span>
+                                        </div>
+                                        <div class="admin-info-row">
+                                            <label>创建时间</label>
+                                            <span id="detailCreatedAt">-</span>
+                                        </div>
+                                        <div class="admin-info-row">
+                                            <label>最后活跃</label>
+                                            <span id="detailLastActive">-</span>
+                                        </div>
                                     </div>
-                                    <div class="admin-info-item">
-                                        <label>账号状态</label>
-                                        <span id="detailStatus">-</span>
-                                    </div>
-                                    <div class="admin-info-item">
-                                        <label>资料状态</label>
-                                        <span id="detailProfileStatus">-</span>
-                                    </div>
-                                    <div class="admin-info-item">
-                                        <label>创建时间</label>
-                                        <span id="detailCreatedAt">-</span>
+                                </div>
+                            </div>
+                            <div class="admin-card admin-user-info-card">
+                                <div class="admin-card-header">
+                                    <h3>个人信息</h3>
+                                </div>
+                                <div class="admin-card-body">
+                                    <div class="admin-info-list">
+                                        <div class="admin-info-row">
+                                            <label>姓名</label>
+                                            <span id="detailNickname">-</span>
+                                        </div>
+                                        <div class="admin-info-row">
+                                            <label>出生年份</label>
+                                            <span id="detailBirthYear">-</span>
+                                        </div>
+                                        <div class="admin-info-row">
+                                            <label>家乡</label>
+                                            <span id="detailHometown">-</span>
+                                        </div>
+                                        <div class="admin-info-row">
+                                            <label>常住城市</label>
+                                            <span id="detailMainCity">-</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="admin-card admin-user-info-card">
+                        <!-- 回忆时间线 -->
+                        <div class="admin-card admin-memoir-timeline-card">
                             <div class="admin-card-header">
-                                <h3>基础信息</h3>
-                            </div>
-                            <div class="admin-card-body">
-                                <div class="admin-info-grid">
-                                    <div class="admin-info-item">
-                                        <label>姓名</label>
-                                        <span id="detailNickname">-</span>
-                                    </div>
-                                    <div class="admin-info-item">
-                                        <label>出生年份</label>
-                                        <span id="detailBirthYear">-</span>
-                                    </div>
-                                    <div class="admin-info-item">
-                                        <label>家乡</label>
-                                        <span id="detailHometown">-</span>
-                                    </div>
-                                    <div class="admin-info-item">
-                                        <label>常住城市</label>
-                                        <span id="detailMainCity">-</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 回忆列表 -->
-                        <div class="admin-card admin-memoir-list-card">
-                            <div class="admin-card-header">
-                                <h3>回忆列表</h3>
+                                <h3>回忆录</h3>
                                 <span class="admin-count-badge" id="memoirCount">0</span>
                             </div>
                             <div class="admin-card-body" id="memoirListContainer">
