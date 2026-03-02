@@ -1745,6 +1745,225 @@ body {
     }
 }
 
+/* ============ Admin 数据监控页 ============ */
+
+.admin-monitoring-content {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+.admin-monitor-section {
+    background: white;
+    border-radius: 12px;
+    padding: 20px 24px;
+    box-shadow: 0 1px 12px rgba(0,0,0,0.05);
+}
+
+.admin-monitor-section-title {
+    font-family: var(--font-sans);
+    font-size: 0.95em;
+    font-weight: 500;
+    color: var(--color-text);
+    margin: 0 0 16px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.admin-btn-link {
+    background: none;
+    border: none;
+    color: var(--color-accent);
+    padding: 4px 8px;
+    font-size: 0.85em;
+}
+
+.admin-btn-link:hover {
+    text-decoration: underline;
+    background: none;
+    border: none;
+}
+
+/* 统计卡片 */
+.admin-stat-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.admin-stat-card {
+    flex: 1;
+    min-width: 120px;
+    max-width: 180px;
+    background: var(--color-bg-dark);
+    border-radius: 10px;
+    padding: 16px 20px;
+    text-align: center;
+}
+
+.admin-stat-value {
+    font-size: 1.8em;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 4px;
+}
+
+.admin-stat-label {
+    font-size: 0.82em;
+    color: var(--color-text-light);
+}
+
+.admin-stat-sub {
+    font-size: 0.75em;
+    color: var(--color-accent);
+    margin-top: 4px;
+}
+
+/* 分布图 */
+.admin-dist-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.admin-dist-card {
+    background: var(--color-bg-dark);
+    border-radius: 10px;
+    padding: 16px 20px;
+}
+
+.admin-dist-card h4 {
+    font-family: var(--font-sans);
+    font-size: 0.88em;
+    font-weight: 500;
+    color: var(--color-text);
+    margin: 0 0 14px 0;
+}
+
+.admin-dist-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.admin-dist-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.admin-dist-label {
+    width: 50px;
+    font-size: 0.82em;
+    color: var(--color-text-light);
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.admin-dist-bar-wrap {
+    flex: 1;
+    height: 18px;
+    background: rgba(0,0,0,0.04);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.admin-dist-bar {
+    height: 100%;
+    background: var(--color-accent);
+    opacity: 0.7;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.admin-dist-count {
+    width: 36px;
+    font-size: 0.82em;
+    color: var(--color-text);
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.admin-dist-avg {
+    margin-top: 12px;
+    font-size: 0.78em;
+    color: var(--color-text-light);
+    text-align: right;
+}
+
+/* 留存矩阵弹窗 */
+.admin-retention-modal {
+    max-width: 720px;
+    max-height: 80vh;
+}
+
+.admin-retention-modal .modal-body {
+    padding: 0;
+    overflow: hidden;
+}
+
+.admin-retention-table-wrap {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.admin-retention-table th,
+.admin-retention-table td {
+    text-align: center;
+    padding: 12px 14px;
+}
+
+.admin-retention-cell {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-weight: 500;
+}
+
+.retention-high {
+    background: #d4edda;
+    color: #155724;
+}
+
+.retention-mid {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.retention-low {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.retention-very-low {
+    background: #f0f0f0;
+    color: #999;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .admin-stat-cards {
+        flex-wrap: wrap;
+    }
+
+    .admin-stat-card {
+        min-width: 100px;
+        max-width: none;
+        flex: 1 1 calc(50% - 8px);
+    }
+
+    .admin-dist-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-retention-modal {
+        max-width: 100%;
+        margin: 0 8px;
+    }
+}
+
 /* ============ Admin 用户详情页 ============ */
 
 .admin-header-left {

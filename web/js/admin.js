@@ -65,6 +65,8 @@ function logout() {
 // ========== Tab 切换 ==========
 
 let eraMemoriesLoaded = false;
+let monitoringLoaded = false;
+let monitoringData = null;
 
 function switchTab(tab) {
     // 更新侧边栏选中态
@@ -83,6 +85,9 @@ function switchTab(tab) {
     } else if (tab === 'era-memories') {
         document.getElementById('tabEraMemories').classList.add('active');
         if (!eraMemoriesLoaded) loadEraMemories();
+    } else if (tab === 'monitoring') {
+        document.getElementById('tabMonitoring').classList.add('active');
+        if (!monitoringLoaded) loadMonitoringData();
     }
 }
 
@@ -469,6 +474,137 @@ async function deleteEraMemory(id) {
     } catch (e) {
         alert('删除失败：' + e.message);
     }
+}
+
+// ========== 数据监控 ==========
+
+async function loadMonitoringData() {
+    try {
+        const data = await adminRequest('/admin/monitoring');
+        monitoringData = data;
+        monitoringLoaded = true;
+        renderMonitoringData(data);
+    } catch (e) {
+        console.error('加载监控数据失败:', e);
+    }
+}
+
+function refreshMonitoring() {
+    monitoringLoaded = false;
+    loadMonitoringData();
+}
+
+function renderMonitoringData(data) {
+    // 总体概览
+    document.getElementById('statTotalUsers').textContent = data.overview.total_users;
+    document.getElementById('statProfileCompleted').textContent = data.overview.profile_completed_users;
+    document.getElementById('statProfileRate').textContent = `完成率 ${(data.overview.profile_completion_rate * 100).toFixed(0)}%`;
+    document.getElementById('statTotalConversations').textContent = data.overview.total_conversations;
+    document.getElementById('statTotalMemoirs').textContent = data.overview.total_memoirs;
+
+    // 活跃度
+    document.getElementById('statTodayActive').textContent = data.activity.today_active_users;
+    document.getElementById('statWeekActive').textContent = data.activity.week_active_users;
+    document.getElementById('statMonthActive').textContent = data.activity.month_active_users;
+    document.getElementById('statTodayConv').textContent = data.activity.today_new_conversations;
+    document.getElementById('statTodayMemoir').textContent = data.activity.today_new_memoirs;
+
+    // 留存率
+    document.getElementById('statRetention1').textContent = formatRetention(data.retention.day1);
+    document.getElementById('statRetention7').textContent = formatRetention(data.retention.day7);
+    document.getElementById('statRetention30').textContent = formatRetention(data.retention.day30);
+
+    // 分布图
+    renderDistribution('distConversations', data.distributions.conversations_per_user, 'avgConversations', data.overview.total_conversations, data.overview.total_users, '次对话/人');
+    renderDistribution('distMemoirs', data.distributions.memoirs_per_user, 'avgMemoirs', data.overview.total_memoirs, data.overview.total_users, '篇回忆/人');
+    renderDistribution('distMessages', data.distributions.messages_per_conversation, 'avgMessages', null, null, null);
+    renderDistribution('distBirthDecade', data.distributions.birth_decade);
+    renderDistribution('distHometown', data.distributions.hometown_province);
+}
+
+function formatRetention(value) {
+    if (value === null || value === undefined) return '-';
+    return `${(value * 100).toFixed(0)}%`;
+}
+
+function renderDistribution(containerId, items, avgId, totalItems, totalUsers, avgUnit) {
+    const container = document.getElementById(containerId);
+    if (!items || items.length === 0) {
+        container.innerHTML = '<div class="admin-empty-state">暂无数据</div>';
+        return;
+    }
+
+    const maxCount = Math.max(...items.map(i => i.count));
+
+    container.innerHTML = items.map(item => {
+        const percent = maxCount > 0 ? (item.count / maxCount * 100) : 0;
+        return `
+            <div class="admin-dist-row">
+                <div class="admin-dist-label">${item.label}</div>
+                <div class="admin-dist-bar-wrap">
+                    <div class="admin-dist-bar" style="width: ${percent}%"></div>
+                </div>
+                <div class="admin-dist-count">${item.count}</div>
+            </div>
+        `;
+    }).join('');
+
+    // 平均值
+    if (avgId && totalItems !== null && totalUsers !== null && totalUsers > 0) {
+        const avg = (totalItems / totalUsers).toFixed(1);
+        document.getElementById(avgId).textContent = `平均 ${avg} ${avgUnit}`;
+    }
+}
+
+async function showRetentionMatrix() {
+    document.getElementById('retentionModal').style.display = 'flex';
+    document.getElementById('retentionMatrixBody').innerHTML = '<tr><td colspan="7" class="admin-table-empty">加载中...</td></tr>';
+
+    try {
+        const data = await adminRequest('/admin/monitoring/retention-matrix?days=30');
+        renderRetentionMatrix(data);
+    } catch (e) {
+        document.getElementById('retentionMatrixBody').innerHTML = '<tr><td colspan="7" class="admin-table-empty">加载失败</td></tr>';
+    }
+}
+
+function renderRetentionMatrix(data) {
+    const tbody = document.getElementById('retentionMatrixBody');
+
+    if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="admin-table-empty">暂无数据</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = data.map(row => `
+        <tr>
+            <td>${row.date}</td>
+            <td>${row.new_users}</td>
+            <td>${formatRetentionCell(row.day1)}</td>
+            <td>${formatRetentionCell(row.day3)}</td>
+            <td>${formatRetentionCell(row.day7)}</td>
+            <td>${formatRetentionCell(row.day14)}</td>
+            <td>${formatRetentionCell(row.day30)}</td>
+        </tr>
+    `).join('');
+}
+
+function formatRetentionCell(value) {
+    if (value === null || value === undefined) return '<span class="text-muted">-</span>';
+    const percent = (value * 100).toFixed(0);
+    const colorClass = getRetentionColorClass(value);
+    return `<span class="admin-retention-cell ${colorClass}">${percent}%</span>`;
+}
+
+function getRetentionColorClass(value) {
+    if (value >= 0.5) return 'retention-high';
+    if (value >= 0.3) return 'retention-mid';
+    if (value >= 0.1) return 'retention-low';
+    return 'retention-very-low';
+}
+
+function closeRetentionModal() {
+    document.getElementById('retentionModal').style.display = 'none';
 }
 
 // ========== 用户详情 ==========

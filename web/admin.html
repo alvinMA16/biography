@@ -41,6 +41,10 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                         时代记忆
                     </button>
+                    <button class="admin-nav-item" data-tab="monitoring" onclick="switchTab('monitoring')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+                        数据监控
+                    </button>
                 </nav>
                 <div class="admin-sidebar-footer">
                     <button class="admin-nav-item admin-logout-btn" onclick="logout()">
@@ -128,6 +132,131 @@
                                     <tr><td colspan="4" class="admin-table-empty">加载中...</td></tr>
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 数据监控 Tab -->
+                <div id="tabMonitoring" class="admin-tab-panel">
+                    <header class="admin-panel-header">
+                        <h1>数据监控</h1>
+                        <button class="admin-btn admin-btn-sm" onclick="refreshMonitoring()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M23 4v6h-6M1 20v-6h6"/>
+                                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                            </svg>
+                            刷新
+                        </button>
+                    </header>
+                    <div class="admin-panel-content admin-monitoring-content">
+                        <!-- 总体概览 -->
+                        <div class="admin-monitor-section">
+                            <h3 class="admin-monitor-section-title">总体概览</h3>
+                            <div class="admin-stat-cards">
+                                <div class="admin-stat-card">
+                                    <div class="admin-stat-value" id="statTotalUsers">-</div>
+                                    <div class="admin-stat-label">总用户数</div>
+                                </div>
+                                <div class="admin-stat-card">
+                                    <div class="admin-stat-value" id="statProfileCompleted">-</div>
+                                    <div class="admin-stat-label">已完成资料</div>
+                                    <div class="admin-stat-sub" id="statProfileRate">-</div>
+                                </div>
+                                <div class="admin-stat-card">
+                                    <div class="admin-stat-value" id="statTotalConversations">-</div>
+                                    <div class="admin-stat-label">总对话数</div>
+                                </div>
+                                <div class="admin-stat-card">
+                                    <div class="admin-stat-value" id="statTotalMemoirs">-</div>
+                                    <div class="admin-stat-label">总回忆录数</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 活跃度 -->
+                        <div class="admin-monitor-section">
+                            <h3 class="admin-monitor-section-title">活跃度</h3>
+                            <div class="admin-stat-cards">
+                                <div class="admin-stat-card">
+                                    <div class="admin-stat-value" id="statTodayActive">-</div>
+                                    <div class="admin-stat-label">今日活跃</div>
+                                </div>
+                                <div class="admin-stat-card">
+                                    <div class="admin-stat-value" id="statWeekActive">-</div>
+                                    <div class="admin-stat-label">7日活跃</div>
+                                </div>
+                                <div class="admin-stat-card">
+                                    <div class="admin-stat-value" id="statMonthActive">-</div>
+                                    <div class="admin-stat-label">30日活跃</div>
+                                </div>
+                                <div class="admin-stat-card">
+                                    <div class="admin-stat-value" id="statTodayConv">-</div>
+                                    <div class="admin-stat-label">今日新对话</div>
+                                </div>
+                                <div class="admin-stat-card">
+                                    <div class="admin-stat-value" id="statTodayMemoir">-</div>
+                                    <div class="admin-stat-label">今日新回忆</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 留存率 -->
+                        <div class="admin-monitor-section">
+                            <h3 class="admin-monitor-section-title">
+                                用户留存
+                                <button class="admin-btn admin-btn-sm admin-btn-link" onclick="showRetentionMatrix()">查看详情</button>
+                            </h3>
+                            <div class="admin-stat-cards">
+                                <div class="admin-stat-card">
+                                    <div class="admin-stat-value" id="statRetention1">-</div>
+                                    <div class="admin-stat-label">次日留存</div>
+                                </div>
+                                <div class="admin-stat-card">
+                                    <div class="admin-stat-value" id="statRetention7">-</div>
+                                    <div class="admin-stat-label">7日留存</div>
+                                </div>
+                                <div class="admin-stat-card">
+                                    <div class="admin-stat-value" id="statRetention30">-</div>
+                                    <div class="admin-stat-label">30日留存</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 分布统计 -->
+                        <div class="admin-monitor-section">
+                            <h3 class="admin-monitor-section-title">数据分布</h3>
+                            <div class="admin-dist-grid">
+                                <div class="admin-dist-card">
+                                    <h4>用户对话数分布</h4>
+                                    <div class="admin-dist-chart" id="distConversations"></div>
+                                    <div class="admin-dist-avg" id="avgConversations"></div>
+                                </div>
+                                <div class="admin-dist-card">
+                                    <h4>用户回忆录数分布</h4>
+                                    <div class="admin-dist-chart" id="distMemoirs"></div>
+                                    <div class="admin-dist-avg" id="avgMemoirs"></div>
+                                </div>
+                                <div class="admin-dist-card">
+                                    <h4>单次对话消息数分布</h4>
+                                    <div class="admin-dist-chart" id="distMessages"></div>
+                                    <div class="admin-dist-avg" id="avgMessages"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 用户分布 -->
+                        <div class="admin-monitor-section">
+                            <h3 class="admin-monitor-section-title">用户分布</h3>
+                            <div class="admin-dist-grid">
+                                <div class="admin-dist-card">
+                                    <h4>出生年代分布</h4>
+                                    <div class="admin-dist-chart" id="distBirthDecade"></div>
+                                </div>
+                                <div class="admin-dist-card">
+                                    <h4>家乡地区分布</h4>
+                                    <div class="admin-dist-chart" id="distHometown"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -348,6 +477,36 @@
                 <div class="admin-modal-footer">
                     <button class="admin-modal-btn admin-modal-btn-cancel" onclick="closeEraMemoryModal()">取消</button>
                     <button class="admin-modal-btn admin-modal-btn-confirm" onclick="saveEraMemory()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 留存矩阵弹窗 -->
+    <div class="modal" id="retentionModal" style="display:none;" onclick="if(event.target===this)closeRetentionModal()">
+        <div class="modal-content admin-retention-modal">
+            <div class="modal-header">
+                <h2>留存矩阵</h2>
+                <button class="btn-close" onclick="closeRetentionModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="admin-retention-table-wrap">
+                    <table class="admin-table admin-retention-table">
+                        <thead>
+                            <tr>
+                                <th>注册日期</th>
+                                <th>新增</th>
+                                <th>次日</th>
+                                <th>3日</th>
+                                <th>7日</th>
+                                <th>14日</th>
+                                <th>30日</th>
+                            </tr>
+                        </thead>
+                        <tbody id="retentionMatrixBody">
+                            <tr><td colspan="7" class="admin-table-empty">加载中...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

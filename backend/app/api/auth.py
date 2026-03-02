@@ -508,6 +508,339 @@ def admin_list_logs(
     ]
 
 
+# ========== 管理员：数据监控 ==========
+
+
+class OverviewStats(BaseModel):
+    total_users: int
+    profile_completed_users: int
+    profile_completion_rate: float
+    total_conversations: int
+    total_memoirs: int
+
+
+class ActivityStats(BaseModel):
+    today_active_users: int
+    week_active_users: int
+    month_active_users: int
+    today_new_conversations: int
+    today_new_memoirs: int
+
+
+class RetentionStats(BaseModel):
+    day1: Optional[float] = None
+    day7: Optional[float] = None
+    day30: Optional[float] = None
+
+
+class DistributionItem(BaseModel):
+    label: str
+    count: int
+
+
+class DistributionStats(BaseModel):
+    conversations_per_user: List[DistributionItem]
+    memoirs_per_user: List[DistributionItem]
+    messages_per_conversation: List[DistributionItem]
+    birth_decade: List[DistributionItem]
+    hometown_province: List[DistributionItem]
+
+
+class MonitoringData(BaseModel):
+    overview: OverviewStats
+    activity: ActivityStats
+    retention: RetentionStats
+    distributions: DistributionStats
+
+
+class RetentionMatrixRow(BaseModel):
+    date: str
+    new_users: int
+    day1: Optional[float] = None
+    day3: Optional[float] = None
+    day7: Optional[float] = None
+    day14: Optional[float] = None
+    day30: Optional[float] = None
+
+
+@admin_router.get("/monitoring", response_model=MonitoringData)
+def admin_get_monitoring_data(
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin_key),
+):
+    """管理员获取数据监控统计"""
+    from datetime import timedelta
+    from sqlalchemy import func, case, and_, distinct
+
+    now = datetime.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_ago = today_start - timedelta(days=7)
+    month_ago = today_start - timedelta(days=30)
+
+    # ===== 总体概览 =====
+    total_users = db.query(func.count(User.id)).scalar() or 0
+    profile_completed_users = db.query(func.count(User.id)).filter(User.profile_completed == True).scalar() or 0
+    total_conversations = db.query(func.count(Conversation.id)).scalar() or 0
+    total_memoirs = db.query(func.count(Memoir.id)).scalar() or 0
+
+    overview = OverviewStats(
+        total_users=total_users,
+        profile_completed_users=profile_completed_users,
+        profile_completion_rate=round(profile_completed_users / total_users, 2) if total_users > 0 else 0,
+        total_conversations=total_conversations,
+        total_memoirs=total_memoirs,
+    )
+
+    # ===== 活跃度 =====
+    # 活跃用户：有对话消息的用户
+    today_active = db.query(func.count(distinct(Conversation.user_id))).filter(
+        Conversation.created_at >= today_start
+    ).scalar() or 0
+
+    week_active = db.query(func.count(distinct(Conversation.user_id))).filter(
+        Conversation.created_at >= week_ago
+    ).scalar() or 0
+
+    month_active = db.query(func.count(distinct(Conversation.user_id))).filter(
+        Conversation.created_at >= month_ago
+    ).scalar() or 0
+
+    today_new_conversations = db.query(func.count(Conversation.id)).filter(
+        Conversation.created_at >= today_start
+    ).scalar() or 0
+
+    today_new_memoirs = db.query(func.count(Memoir.id)).filter(
+        Memoir.created_at >= today_start
+    ).scalar() or 0
+
+    activity = ActivityStats(
+        today_active_users=today_active,
+        week_active_users=week_active,
+        month_active_users=month_active,
+        today_new_conversations=today_new_conversations,
+        today_new_memoirs=today_new_memoirs,
+    )
+
+    # ===== 留存率 =====
+    def calc_retention(days: int) -> Optional[float]:
+        """计算 N 日留存率"""
+        cutoff_date = today_start - timedelta(days=days)
+        # 在 cutoff_date 之前注册的用户
+        eligible_users = db.query(User.id).filter(User.created_at < cutoff_date).subquery()
+        eligible_count = db.query(func.count()).select_from(eligible_users).scalar() or 0
+        if eligible_count == 0:
+            return None
+        # 这些用户中，在注册 N 天后仍有活动的用户
+        retained_count = db.query(func.count(distinct(Conversation.user_id))).filter(
+            Conversation.user_id.in_(db.query(eligible_users)),
+            Conversation.created_at >= cutoff_date
+        ).scalar() or 0
+        return round(retained_count / eligible_count, 2)
+
+    retention = RetentionStats(
+        day1=calc_retention(1),
+        day7=calc_retention(7),
+        day30=calc_retention(30),
+    )
+
+    # ===== 分布统计 =====
+
+    # 用户对话数分布
+    conv_counts = db.query(
+        Conversation.user_id,
+        func.count(Conversation.id).label('cnt')
+    ).group_by(Conversation.user_id).subquery()
+
+    conv_dist_raw = db.query(
+        case(
+            (conv_counts.c.cnt == 0, '0'),
+            (conv_counts.c.cnt <= 2, '1-2'),
+            (conv_counts.c.cnt <= 5, '3-5'),
+            else_='6+'
+        ).label('range'),
+        func.count().label('count')
+    ).select_from(conv_counts).group_by('range').all()
+
+    # 包含没有对话的用户
+    users_with_conv = db.query(func.count(distinct(Conversation.user_id))).scalar() or 0
+    users_without_conv = total_users - users_with_conv
+
+    conv_dist = {r.range: r.count for r in conv_dist_raw}
+    conv_dist['0'] = conv_dist.get('0', 0) + users_without_conv
+    conversations_per_user = [
+        DistributionItem(label='0', count=conv_dist.get('0', 0)),
+        DistributionItem(label='1-2', count=conv_dist.get('1-2', 0)),
+        DistributionItem(label='3-5', count=conv_dist.get('3-5', 0)),
+        DistributionItem(label='6+', count=conv_dist.get('6+', 0)),
+    ]
+
+    # 用户回忆录数分布
+    memoir_counts = db.query(
+        Memoir.user_id,
+        func.count(Memoir.id).label('cnt')
+    ).group_by(Memoir.user_id).subquery()
+
+    memoir_dist_raw = db.query(
+        case(
+            (memoir_counts.c.cnt == 0, '0'),
+            (memoir_counts.c.cnt <= 2, '1-2'),
+            (memoir_counts.c.cnt <= 5, '3-5'),
+            else_='6+'
+        ).label('range'),
+        func.count().label('count')
+    ).select_from(memoir_counts).group_by('range').all()
+
+    users_with_memoir = db.query(func.count(distinct(Memoir.user_id))).scalar() or 0
+    users_without_memoir = total_users - users_with_memoir
+
+    memoir_dist = {r.range: r.count for r in memoir_dist_raw}
+    memoir_dist['0'] = memoir_dist.get('0', 0) + users_without_memoir
+    memoirs_per_user = [
+        DistributionItem(label='0', count=memoir_dist.get('0', 0)),
+        DistributionItem(label='1-2', count=memoir_dist.get('1-2', 0)),
+        DistributionItem(label='3-5', count=memoir_dist.get('3-5', 0)),
+        DistributionItem(label='6+', count=memoir_dist.get('6+', 0)),
+    ]
+
+    # 每次对话消息数分布
+    msg_counts = db.query(
+        Message.conversation_id,
+        func.count(Message.id).label('cnt')
+    ).group_by(Message.conversation_id).subquery()
+
+    msg_dist_raw = db.query(
+        case(
+            (msg_counts.c.cnt <= 5, '1-5'),
+            (msg_counts.c.cnt <= 10, '6-10'),
+            (msg_counts.c.cnt <= 20, '11-20'),
+            else_='20+'
+        ).label('range'),
+        func.count().label('count')
+    ).select_from(msg_counts).group_by('range').all()
+
+    msg_dist = {r.range: r.count for r in msg_dist_raw}
+    messages_per_conversation = [
+        DistributionItem(label='1-5', count=msg_dist.get('1-5', 0)),
+        DistributionItem(label='6-10', count=msg_dist.get('6-10', 0)),
+        DistributionItem(label='11-20', count=msg_dist.get('11-20', 0)),
+        DistributionItem(label='20+', count=msg_dist.get('20+', 0)),
+    ]
+
+    # 出生年代分布
+    decade_dist_raw = db.query(
+        case(
+            (User.birth_year < 1950, '40前'),
+            (User.birth_year < 1960, '50后'),
+            (User.birth_year < 1970, '60后'),
+            (User.birth_year < 1980, '70后'),
+            (User.birth_year < 1990, '80后'),
+            else_='90后'
+        ).label('decade'),
+        func.count().label('count')
+    ).filter(User.birth_year.isnot(None)).group_by('decade').all()
+
+    birth_decade = [DistributionItem(label=r.decade, count=r.count) for r in decade_dist_raw]
+    # 添加未填写的用户
+    users_without_birth = db.query(func.count(User.id)).filter(User.birth_year.is_(None)).scalar() or 0
+    if users_without_birth > 0:
+        birth_decade.append(DistributionItem(label='未填写', count=users_without_birth))
+
+    # 家乡省份分布（提取省份）
+    # 简单处理：取 hometown 的前2-3个字作为省份
+    hometown_raw = db.query(User.hometown).filter(User.hometown.isnot(None), User.hometown != '').all()
+    province_counts = {}
+    for (hometown,) in hometown_raw:
+        if not hometown:
+            continue
+        # 提取省份（简单处理：取前2-3个字）
+        province = hometown[:2] if len(hometown) >= 2 else hometown
+        # 处理特殊情况
+        if province in ['内蒙', '黑龙']:
+            province = hometown[:3] if len(hometown) >= 3 else province
+        province_counts[province] = province_counts.get(province, 0) + 1
+
+    # 排序取 Top 10
+    sorted_provinces = sorted(province_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+    hometown_province = [DistributionItem(label=p, count=c) for p, c in sorted_provinces]
+
+    users_without_hometown = db.query(func.count(User.id)).filter(
+        (User.hometown.is_(None)) | (User.hometown == '')
+    ).scalar() or 0
+    if users_without_hometown > 0:
+        hometown_province.append(DistributionItem(label='未填写', count=users_without_hometown))
+
+    distributions = DistributionStats(
+        conversations_per_user=conversations_per_user,
+        memoirs_per_user=memoirs_per_user,
+        messages_per_conversation=messages_per_conversation,
+        birth_decade=birth_decade,
+        hometown_province=hometown_province,
+    )
+
+    return MonitoringData(
+        overview=overview,
+        activity=activity,
+        retention=retention,
+        distributions=distributions,
+    )
+
+
+@admin_router.get("/monitoring/retention-matrix", response_model=List[RetentionMatrixRow])
+def admin_get_retention_matrix(
+    days: int = 30,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin_key),
+):
+    """管理员获取留存矩阵数据"""
+    from datetime import timedelta
+    from sqlalchemy import func, distinct
+
+    now = datetime.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    result = []
+
+    # 按注册日期分组，计算每天的留存
+    for i in range(days, 0, -1):
+        target_date = today_start - timedelta(days=i)
+        next_date = target_date + timedelta(days=1)
+
+        # 当天注册的用户
+        new_users_query = db.query(User.id).filter(
+            User.created_at >= target_date,
+            User.created_at < next_date
+        )
+        new_user_ids = [u.id for u in new_users_query.all()]
+        new_users_count = len(new_user_ids)
+
+        if new_users_count == 0:
+            continue
+
+        row = RetentionMatrixRow(
+            date=target_date.strftime('%m-%d'),
+            new_users=new_users_count,
+        )
+
+        # 计算各天留存
+        for retention_day, attr_name in [(1, 'day1'), (3, 'day3'), (7, 'day7'), (14, 'day14'), (30, 'day30')]:
+            retention_date = target_date + timedelta(days=retention_day)
+            if retention_date > today_start:
+                # 还没到这一天
+                continue
+
+            # 在 retention_date 当天或之后有活动的用户数
+            retained = db.query(func.count(distinct(Conversation.user_id))).filter(
+                Conversation.user_id.in_(new_user_ids),
+                Conversation.created_at >= retention_date
+            ).scalar() or 0
+
+            setattr(row, attr_name, round(retained / new_users_count, 2) if new_users_count > 0 else 0)
+
+        result.append(row)
+
+    return result
+
+
 # ========== 管理员：时代记忆管理 ==========
 
 class EraMemoryItem(BaseModel):
