@@ -790,29 +790,29 @@ function renderUserDetail(detail) {
 }
 
 function renderUserStats(stats) {
-    if (!stats) {
-        document.getElementById('statAvgDuration').textContent = '-';
-        document.getElementById('statAvgMessages').textContent = '-';
-        document.getElementById('statConvRate').textContent = '-';
-        document.getElementById('statAvgMemoirLen').textContent = '-';
-        document.getElementById('statFirstMemoirDays').textContent = '-';
-        document.getElementById('statLifeStages').innerHTML = '<span class="text-muted">暂无</span>';
-        return;
-    }
+    // 累计数据
+    document.getElementById('statTotalConv').textContent = stats?.total_conversations ?? 0;
+    document.getElementById('statTotalMemoirs').textContent = stats?.total_memoirs ?? 0;
+    document.getElementById('statTotalMessages').textContent = stats?.total_messages ?? 0;
+    document.getElementById('statTotalDuration').textContent =
+        stats?.total_duration_mins ? formatDuration(stats.total_duration_mins) : '-';
+    document.getElementById('statTotalChars').textContent =
+        stats?.total_memoir_chars ? formatNumber(stats.total_memoir_chars) : '0';
 
+    // 平均数据
     document.getElementById('statAvgDuration').textContent =
-        stats.avg_conversation_duration_mins ? `${stats.avg_conversation_duration_mins}分钟` : '-';
+        stats?.avg_conversation_duration_mins ? `${stats.avg_conversation_duration_mins}分钟` : '-';
     document.getElementById('statAvgMessages').textContent =
-        stats.avg_messages_per_conversation ? `${stats.avg_messages_per_conversation}轮` : '-';
+        stats?.avg_messages_per_conversation ? `${stats.avg_messages_per_conversation}轮` : '-';
     document.getElementById('statConvRate').textContent =
-        stats.conversation_to_memoir_rate !== null ? `${(stats.conversation_to_memoir_rate * 100).toFixed(0)}%` : '-';
+        stats?.conversation_to_memoir_rate != null ? `${(stats.conversation_to_memoir_rate * 100).toFixed(0)}%` : '-';
     document.getElementById('statAvgMemoirLen').textContent =
-        stats.avg_memoir_length ? `${stats.avg_memoir_length}字` : '-';
+        stats?.avg_memoir_length ? `${stats.avg_memoir_length}字` : '-';
     document.getElementById('statFirstMemoirDays').textContent =
-        stats.first_memoir_days !== null ? `${stats.first_memoir_days}天` : '-';
+        stats?.first_memoir_days != null ? `${stats.first_memoir_days}天` : '-';
 
     // 人生阶段覆盖
-    const stages = stats.life_stages_coverage || {};
+    const stages = stats?.life_stages_coverage || {};
     const stageKeys = Object.keys(stages);
     if (stageKeys.length > 0) {
         document.getElementById('statLifeStages').innerHTML = stageKeys.map(stage =>
@@ -821,6 +821,21 @@ function renderUserStats(stats) {
     } else {
         document.getElementById('statLifeStages').innerHTML = '<span class="text-muted">暂无</span>';
     }
+}
+
+// 格式化时长（分钟 -> 小时分钟）
+function formatDuration(minutes) {
+    if (minutes < 60) {
+        return `${Math.round(minutes)}分钟`;
+    }
+    const hours = Math.floor(minutes / 60);
+    const mins = Math.round(minutes % 60);
+    return mins > 0 ? `${hours}小时${mins}分钟` : `${hours}小时`;
+}
+
+// 格式化数字（添加千分位）
+function formatNumber(num) {
+    return num.toLocaleString('zh-CN');
 }
 
 function renderTopicPool(topics) {

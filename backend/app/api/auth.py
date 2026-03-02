@@ -398,6 +398,13 @@ class AdminTopicItem(BaseModel):
 
 class AdminUserStats(BaseModel):
     """用户使用统计"""
+    # 累计数据
+    total_conversations: int = 0  # 总对话数
+    total_memoirs: int = 0  # 总回忆录数
+    total_messages: int = 0  # 总消息数
+    total_duration_mins: Optional[float] = None  # 总对话时长（分钟）
+    total_memoir_chars: int = 0  # 回忆录总字数
+    # 平均数据
     avg_conversation_duration_mins: Optional[float] = None  # 平均对话时长（分钟）
     avg_messages_per_conversation: Optional[float] = None  # 平均每次对话消息数
     conversation_to_memoir_rate: Optional[float] = None  # 对话转化为回忆录的比率
@@ -527,13 +534,18 @@ def _calculate_user_stats(user: User, memoirs: list, conversations: list) -> Adm
     """计算用户使用统计"""
     stats = AdminUserStats()
 
+    # 累计数据
+    stats.total_conversations = len(conversations)
+    stats.total_memoirs = len([m for m in memoirs if m.status == 'completed'])
+
     # 对话相关统计
     if conversations:
-        # 平均每次对话消息数
+        # 总消息数和平均消息数
         total_messages = sum(len(c.messages or []) for c in conversations)
+        stats.total_messages = total_messages
         stats.avg_messages_per_conversation = round(total_messages / len(conversations), 1)
 
-        # 平均对话时长
+        # 对话时长统计
         durations = []
         for c in conversations:
             if c.messages and len(c.messages) >= 2:
@@ -544,13 +556,15 @@ def _calculate_user_stats(user: User, memoirs: list, conversations: list) -> Adm
                     if duration > 0:
                         durations.append(duration)
         if durations:
+            stats.total_duration_mins = round(sum(durations), 1)
             stats.avg_conversation_duration_mins = round(sum(durations) / len(durations), 1)
 
     # 回忆录相关统计
     completed_memoirs = [m for m in memoirs if m.status == 'completed']
     if completed_memoirs:
-        # 回忆录平均字数
+        # 回忆录总字数和平均字数
         total_length = sum(len(m.content or '') for m in completed_memoirs)
+        stats.total_memoir_chars = total_length
         stats.avg_memoir_length = round(total_length / len(completed_memoirs))
 
         # 人生阶段覆盖

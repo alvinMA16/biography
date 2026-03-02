@@ -355,31 +355,117 @@
                                 <h3>使用统计</h3>
                             </div>
                             <div class="admin-card-body">
-                                <div class="admin-stats-grid" id="userStatsGrid">
-                                    <div class="admin-stat-item">
-                                        <div class="stat-value" id="statAvgDuration">-</div>
-                                        <div class="stat-label">平均对话时长</div>
+                                <!-- 累计数据 -->
+                                <div class="admin-stats-section">
+                                    <div class="admin-stats-section-title">累计数据</div>
+                                    <div class="admin-stats-grid">
+                                        <div class="admin-stat-item">
+                                            <div class="stat-value" id="statTotalConv">-</div>
+                                            <div class="stat-label">
+                                                对话次数
+                                                <span class="stat-info" data-tooltip="用户发起的对话总次数">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="admin-stat-item">
+                                            <div class="stat-value" id="statTotalMemoirs">-</div>
+                                            <div class="stat-label">
+                                                回忆录篇数
+                                                <span class="stat-info" data-tooltip="已生成的回忆录总篇数">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="admin-stat-item">
+                                            <div class="stat-value" id="statTotalMessages">-</div>
+                                            <div class="stat-label">
+                                                消息总数
+                                                <span class="stat-info" data-tooltip="所有对话中的消息总数（含用户和AI）">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="admin-stat-item">
+                                            <div class="stat-value" id="statTotalDuration">-</div>
+                                            <div class="stat-label">
+                                                对话总时长
+                                                <span class="stat-info" data-tooltip="所有对话的累计时长（从首条消息到末条消息）">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="admin-stat-item">
+                                            <div class="stat-value" id="statTotalChars">-</div>
+                                            <div class="stat-label">
+                                                回忆录总字数
+                                                <span class="stat-info" data-tooltip="所有回忆录的累计字数">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="admin-stat-item">
-                                        <div class="stat-value" id="statAvgMessages">-</div>
-                                        <div class="stat-label">平均消息轮数</div>
+                                </div>
+                                <!-- 平均数据 -->
+                                <div class="admin-stats-section">
+                                    <div class="admin-stats-section-title">平均数据</div>
+                                    <div class="admin-stats-grid">
+                                        <div class="admin-stat-item">
+                                            <div class="stat-value" id="statAvgDuration">-</div>
+                                            <div class="stat-label">
+                                                平均对话时长
+                                                <span class="stat-info" data-tooltip="每次对话的平均时长（分钟），从首条消息到末条消息">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="admin-stat-item">
+                                            <div class="stat-value" id="statAvgMessages">-</div>
+                                            <div class="stat-label">
+                                                平均消息轮数
+                                                <span class="stat-info" data-tooltip="每次对话的平均消息数（含用户和AI的消息）">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="admin-stat-item">
+                                            <div class="stat-value" id="statConvRate">-</div>
+                                            <div class="stat-label">
+                                                对话转化率
+                                                <span class="stat-info" data-tooltip="成功生成回忆录的对话占比 = 有回忆录的对话数 / 总对话数">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="admin-stat-item">
+                                            <div class="stat-value" id="statAvgMemoirLen">-</div>
+                                            <div class="stat-label">
+                                                回忆录均字数
+                                                <span class="stat-info" data-tooltip="每篇回忆录的平均字数 = 总字数 / 回忆录篇数">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="admin-stat-item">
+                                            <div class="stat-value" id="statFirstMemoirDays">-</div>
+                                            <div class="stat-label">
+                                                首篇回忆耗时
+                                                <span class="stat-info" data-tooltip="从账号创建到生成第一篇回忆录的天数">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="admin-stat-item">
-                                        <div class="stat-value" id="statConvRate">-</div>
-                                        <div class="stat-label">对话转化率</div>
+                                </div>
+                                <!-- 人生阶段覆盖 -->
+                                <div class="admin-stats-section">
+                                    <div class="admin-stats-section-title">
+                                        人生阶段覆盖
+                                        <span class="stat-info" data-tooltip="回忆录覆盖的人生阶段分布，根据回忆录时间和用户出生年份推算">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                                        </span>
                                     </div>
-                                    <div class="admin-stat-item">
-                                        <div class="stat-value" id="statAvgMemoirLen">-</div>
-                                        <div class="stat-label">回忆录均字数</div>
-                                    </div>
-                                    <div class="admin-stat-item">
-                                        <div class="stat-value" id="statFirstMemoirDays">-</div>
-                                        <div class="stat-label">首篇回忆耗时</div>
-                                    </div>
-                                    <div class="admin-stat-item admin-stat-stages">
-                                        <div class="stat-label">人生阶段覆盖</div>
-                                        <div class="stat-stages" id="statLifeStages">-</div>
-                                    </div>
+                                    <div class="stat-stages" id="statLifeStages">-</div>
                                 </div>
                             </div>
                         </div>
