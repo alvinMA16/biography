@@ -2483,6 +2483,161 @@ body {
     font-size: 0.9em;
 }
 
+/* 使用统计卡片 */
+.admin-stats-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    overflow: hidden;
+}
+
+.admin-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+}
+
+.admin-stat-item {
+    text-align: center;
+    padding: 16px 12px;
+    background: var(--color-bg-dark);
+    border-radius: 12px;
+}
+
+.admin-stat-item .stat-value {
+    font-size: 1.4em;
+    font-weight: 600;
+    color: var(--color-accent);
+    margin-bottom: 4px;
+}
+
+.admin-stat-item .stat-label {
+    font-size: 0.78em;
+    color: var(--color-text-light);
+}
+
+.admin-stat-item.admin-stat-stages {
+    grid-column: span 1;
+    text-align: left;
+}
+
+.admin-stat-stages .stat-label {
+    margin-bottom: 8px;
+}
+
+.admin-stat-stages .stat-stages {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.admin-stage-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: rgba(139, 69, 19, 0.1);
+    color: var(--color-accent);
+    border-radius: 12px;
+    font-size: 0.78em;
+    font-weight: 500;
+}
+
+.admin-stage-tag .stage-count {
+    background: var(--color-accent);
+    color: white;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-size: 0.9em;
+}
+
+/* 话题池卡片 */
+.admin-topic-pool-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    overflow: hidden;
+}
+
+.admin-topic-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.admin-topic-item {
+    padding: 16px;
+    background: var(--color-bg-dark);
+    border-radius: 12px;
+    border-left: 3px solid var(--color-accent);
+}
+
+.admin-topic-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
+.admin-topic-title {
+    font-size: 0.95em;
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.admin-topic-age {
+    font-size: 0.75em;
+    color: var(--color-accent);
+    background: rgba(139, 69, 19, 0.1);
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+}
+
+.admin-topic-greeting {
+    font-size: 0.85em;
+    color: var(--color-text-light);
+    line-height: 1.5;
+}
+
+/* 时代记忆卡片 */
+.admin-era-memory-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    overflow: hidden;
+}
+
+.admin-era-memory-text {
+    font-size: 0.9em;
+    color: var(--color-text);
+    line-height: 1.8;
+    white-space: pre-wrap;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+/* 响应式 - 使用统计 */
+@media (max-width: 1100px) {
+    .admin-stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .admin-stat-item.admin-stat-stages {
+        grid-column: span 3;
+    }
+}
+
+@media (max-width: 600px) {
+    .admin-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .admin-stat-item.admin-stat-stages {
+        grid-column: span 2;
+    }
+}
+
 /* 回忆时间线 */
 .admin-memoir-timeline {
     display: flex;

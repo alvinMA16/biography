@@ -771,6 +771,15 @@ function renderUserDetail(detail) {
     document.getElementById('memoirCount').textContent = detail.memoirs.length;
     renderMemoirList(detail.memoirs, detail.conversations);
 
+    // 使用统计
+    renderUserStats(detail.stats);
+
+    // 话题池
+    renderTopicPool(detail.topic_pool);
+
+    // 时代记忆
+    renderEraMemory(detail.era_memories);
+
     // 头部操作按钮
     const isActive = detail.is_active !== false;
     const label = (detail.phone || detail.nickname || '').replace(/'/g, "\\'");
@@ -778,6 +787,100 @@ function renderUserDetail(detail) {
         <button class="admin-btn admin-btn-sm" onclick="showEditModal('${detail.id}')">编辑</button>
         <button class="admin-btn admin-btn-sm ${isActive ? 'admin-btn-warn' : ''}" onclick="toggleUserActive('${detail.id}', '${label}')">${isActive ? '禁用' : '启用'}</button>
     `;
+}
+
+function renderUserStats(stats) {
+    if (!stats) {
+        document.getElementById('statAvgDuration').textContent = '-';
+        document.getElementById('statAvgMessages').textContent = '-';
+        document.getElementById('statConvRate').textContent = '-';
+        document.getElementById('statAvgMemoirLen').textContent = '-';
+        document.getElementById('statFirstMemoirDays').textContent = '-';
+        document.getElementById('statLifeStages').innerHTML = '<span class="text-muted">暂无</span>';
+        return;
+    }
+
+    document.getElementById('statAvgDuration').textContent =
+        stats.avg_conversation_duration_mins ? `${stats.avg_conversation_duration_mins}分钟` : '-';
+    document.getElementById('statAvgMessages').textContent =
+        stats.avg_messages_per_conversation ? `${stats.avg_messages_per_conversation}轮` : '-';
+    document.getElementById('statConvRate').textContent =
+        stats.conversation_to_memoir_rate !== null ? `${(stats.conversation_to_memoir_rate * 100).toFixed(0)}%` : '-';
+    document.getElementById('statAvgMemoirLen').textContent =
+        stats.avg_memoir_length ? `${stats.avg_memoir_length}字` : '-';
+    document.getElementById('statFirstMemoirDays').textContent =
+        stats.first_memoir_days !== null ? `${stats.first_memoir_days}天` : '-';
+
+    // 人生阶段覆盖
+    const stages = stats.life_stages_coverage || {};
+    const stageKeys = Object.keys(stages);
+    if (stageKeys.length > 0) {
+        document.getElementById('statLifeStages').innerHTML = stageKeys.map(stage =>
+            `<span class="admin-stage-tag">${stage}<span class="stage-count">${stages[stage]}</span></span>`
+        ).join('');
+    } else {
+        document.getElementById('statLifeStages').innerHTML = '<span class="text-muted">暂无</span>';
+    }
+}
+
+function renderTopicPool(topics) {
+    const container = document.getElementById('topicPoolContainer');
+    document.getElementById('topicPoolCount').textContent = topics ? topics.length : 0;
+
+    if (!topics || topics.length === 0) {
+        container.innerHTML = '<div class="admin-empty-state">暂无话题</div>';
+        return;
+    }
+
+    container.innerHTML = `<div class="admin-topic-list">
+        ${topics.map(t => {
+            const ageText = formatAgeRange(t.age_start, t.age_end);
+            return `
+                <div class="admin-topic-item">
+                    <div class="admin-topic-item-header">
+                        <div class="admin-topic-title">${escapeHtml(t.topic)}</div>
+                        ${ageText ? `<span class="admin-topic-age">${ageText}</span>` : ''}
+                    </div>
+                    <div class="admin-topic-greeting">${escapeHtml(t.greeting)}</div>
+                </div>
+            `;
+        }).join('')}
+    </div>`;
+}
+
+function formatAgeRange(start, end) {
+    if (!start && !end) return '';
+    if (start && end) {
+        if (start === end) return `${start}岁`;
+        return `${start}-${end}岁`;
+    }
+    if (start) return `${start}岁起`;
+    return `${end}岁前`;
+}
+
+function renderEraMemory(eraMemories) {
+    const card = document.getElementById('eraMemoryCard');
+    const content = document.getElementById('eraMemoryContent');
+    const text = document.getElementById('eraMemoryText');
+
+    if (!eraMemories) {
+        card.style.display = 'none';
+        return;
+    }
+
+    card.style.display = 'block';
+    text.textContent = eraMemories;
+    content.style.display = 'none';
+    document.getElementById('eraMemoryToggle').textContent = '展开';
+}
+
+function toggleEraMemory() {
+    const content = document.getElementById('eraMemoryContent');
+    const toggle = document.getElementById('eraMemoryToggle');
+    const isHidden = content.style.display === 'none';
+
+    content.style.display = isHidden ? 'block' : 'none';
+    toggle.textContent = isHidden ? '收起' : '展开';
 }
 
 function calculateActiveDays(conversations) {

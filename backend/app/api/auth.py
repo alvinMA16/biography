@@ -386,6 +386,26 @@ class AdminConversationItem(BaseModel):
     messages: List[AdminMessageItem] = []
 
 
+class AdminTopicItem(BaseModel):
+    """话题池项"""
+    id: str
+    topic: str
+    greeting: str
+    age_start: Optional[int] = None
+    age_end: Optional[int] = None
+    created_at: Optional[datetime] = None
+
+
+class AdminUserStats(BaseModel):
+    """用户使用统计"""
+    avg_conversation_duration_mins: Optional[float] = None  # 平均对话时长（分钟）
+    avg_messages_per_conversation: Optional[float] = None  # 平均每次对话消息数
+    conversation_to_memoir_rate: Optional[float] = None  # 对话转化为回忆录的比率
+    avg_memoir_length: Optional[int] = None  # 回忆录平均字数
+    first_memoir_days: Optional[int] = None  # 首篇回忆录耗时（天）
+    life_stages_coverage: dict = {}  # 回忆录覆盖的人生阶段 {阶段: 数量}
+
+
 class AdminUserDetail(BaseModel):
     id: str
     phone: Optional[str] = None
@@ -396,8 +416,11 @@ class AdminUserDetail(BaseModel):
     profile_completed: bool = False
     is_active: bool = True
     created_at: Optional[datetime] = None
+    era_memories: Optional[str] = None  # 时代记忆
     memoirs: List[AdminMemoirDetailItem] = []
     conversations: List[AdminConversationItem] = []
+    topic_pool: List[AdminTopicItem] = []  # 话题池
+    stats: Optional[AdminUserStats] = None  # 使用统计
 
 
 @admin_router.get("/user/{user_id}/detail", response_model=AdminUserDetail)
@@ -406,7 +429,7 @@ def admin_get_user_detail(
     db: Session = Depends(get_db),
     _: None = Depends(verify_admin_key),
 ):
-    """管理员获取用户详情，包括回忆录和对话记录"""
+    """管理员获取用户详情，包括回忆录、对话记录、话题池和使用统计"""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
@@ -463,6 +486,23 @@ def admin_get_user_detail(
         )
         conversation_items.append(conv_item)
 
+    # 获取话题池
+    topic_candidates = db.query(TopicCandidate).filter(TopicCandidate.user_id == user_id).all()
+    topic_pool = [
+        AdminTopicItem(
+            id=t.id,
+            topic=t.topic,
+            greeting=t.greeting,
+            age_start=t.age_start,
+            age_end=t.age_end,
+            created_at=t.created_at,
+        )
+        for t in topic_candidates
+    ]
+
+    # 计算使用统计
+    stats = _calculate_user_stats(user, memoirs, conversations)
+
     return AdminUserDetail(
         id=user.id,
         phone=user.phone,
@@ -473,9 +513,80 @@ def admin_get_user_detail(
         profile_completed=user.profile_completed or False,
         is_active=user.is_active if user.is_active is not None else True,
         created_at=user.created_at,
+        era_memories=user.era_memories,
         memoirs=memoir_items,
         conversations=conversation_items,
+        topic_pool=topic_pool,
+        stats=stats,
     )
+
+
+def _calculate_user_stats(user: User, memoirs: list, conversations: list) -> AdminUserStats:
+    """计算用户使用统计"""
+    stats = AdminUserStats()
+
+    # 对话相关统计
+    if conversations:
+        # 平均每次对话消息数
+        total_messages = sum(len(c.messages or []) for c in conversations)
+        stats.avg_messages_per_conversation = round(total_messages / len(conversations), 1)
+
+        # 平均对话时长
+        durations = []
+        for c in conversations:
+            if c.messages and len(c.messages) >= 2:
+                first_msg = c.messages[0]
+                last_msg = c.messages[-1]
+                if first_msg.created_at and last_msg.created_at:
+                    duration = (last_msg.created_at - first_msg.created_at).total_seconds() / 60
+                    if duration > 0:
+                        durations.append(duration)
+        if durations:
+            stats.avg_conversation_duration_mins = round(sum(durations) / len(durations), 1)
+
+    # 回忆录相关统计
+    completed_memoirs = [m for m in memoirs if m.status == 'completed']
+    if completed_memoirs:
+        # 回忆录平均字数
+        total_length = sum(len(m.content or '') for m in completed_memoirs)
+        stats.avg_memoir_length = round(total_length / len(completed_memoirs))
+
+        # 人生阶段覆盖
+        stages = {}
+        for m in completed_memoirs:
+            if m.time_period:
+                stages[m.time_period] = stages.get(m.time_period, 0) + 1
+            elif m.year_start:
+                # 根据年龄推断阶段
+                if user.birth_year:
+                    age = m.year_start - user.birth_year
+                    if age < 12:
+                        stage = '童年'
+                    elif age < 18:
+                        stage = '少年'
+                    elif age < 30:
+                        stage = '青年'
+                    elif age < 50:
+                        stage = '中年'
+                    else:
+                        stage = '晚年'
+                    stages[stage] = stages.get(stage, 0) + 1
+        stats.life_stages_coverage = stages
+
+    # 对话转化率
+    if conversations:
+        memoir_conv_ids = {m.conversation_id for m in memoirs if m.conversation_id}
+        converted = len([c for c in conversations if c.id in memoir_conv_ids])
+        stats.conversation_to_memoir_rate = round(converted / len(conversations), 2)
+
+    # 首篇回忆录耗时
+    if completed_memoirs and user.created_at:
+        first_memoir = min(completed_memoirs, key=lambda m: m.created_at or datetime.max)
+        if first_memoir.created_at:
+            days = (first_memoir.created_at - user.created_at).days
+            stats.first_memoir_days = max(0, days)
+
+    return stats
 
 
 # ========== 管理员：操作日志 ==========

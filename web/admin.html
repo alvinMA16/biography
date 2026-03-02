@@ -350,6 +350,41 @@
                             </div>
                         </div>
 
+                        <!-- 使用统计 -->
+                        <div class="admin-card admin-stats-card">
+                            <div class="admin-card-header">
+                                <h3>使用统计</h3>
+                            </div>
+                            <div class="admin-card-body">
+                                <div class="admin-stats-grid" id="userStatsGrid">
+                                    <div class="admin-stat-item">
+                                        <div class="stat-value" id="statAvgDuration">-</div>
+                                        <div class="stat-label">平均对话时长</div>
+                                    </div>
+                                    <div class="admin-stat-item">
+                                        <div class="stat-value" id="statAvgMessages">-</div>
+                                        <div class="stat-label">平均消息轮数</div>
+                                    </div>
+                                    <div class="admin-stat-item">
+                                        <div class="stat-value" id="statConvRate">-</div>
+                                        <div class="stat-label">对话转化率</div>
+                                    </div>
+                                    <div class="admin-stat-item">
+                                        <div class="stat-value" id="statAvgMemoirLen">-</div>
+                                        <div class="stat-label">回忆录均字数</div>
+                                    </div>
+                                    <div class="admin-stat-item">
+                                        <div class="stat-value" id="statFirstMemoirDays">-</div>
+                                        <div class="stat-label">首篇回忆耗时</div>
+                                    </div>
+                                    <div class="admin-stat-item admin-stat-stages">
+                                        <div class="stat-label">人生阶段覆盖</div>
+                                        <div class="stat-stages" id="statLifeStages">-</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- 详细信息双栏 -->
                         <div class="admin-detail-grid">
                             <div class="admin-card admin-user-info-card">
@@ -397,6 +432,30 @@
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- 话题池 -->
+                        <div class="admin-card admin-topic-pool-card">
+                            <div class="admin-card-header">
+                                <h3>话题池</h3>
+                                <span class="admin-count-badge" id="topicPoolCount">0</span>
+                            </div>
+                            <div class="admin-card-body" id="topicPoolContainer">
+                                <div class="admin-empty-state">暂无话题</div>
+                            </div>
+                        </div>
+
+                        <!-- 时代记忆 -->
+                        <div class="admin-card admin-era-memory-card" id="eraMemoryCard" style="display:none;">
+                            <div class="admin-card-header">
+                                <h3>时代记忆</h3>
+                                <button class="admin-btn admin-btn-sm admin-btn-link" onclick="toggleEraMemory()">
+                                    <span id="eraMemoryToggle">展开</span>
+                                </button>
+                            </div>
+                            <div class="admin-card-body" id="eraMemoryContent" style="display:none;">
+                                <div class="admin-era-memory-text" id="eraMemoryText">-</div>
                             </div>
                         </div>
 
