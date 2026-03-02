@@ -175,9 +175,7 @@ async def realtime_dialog(websocket: WebSocket):
         actual_mode = mode
         user_nickname = None  # 姓名
         user_preferred_name = None  # 称呼
-        user_birth_year = None
-        user_hometown = None
-        user_main_city = None
+        user_gender = None  # 性别
 
         if user_id:
             db = SessionLocal()
@@ -186,16 +184,13 @@ async def realtime_dialog(websocket: WebSocket):
                 if user:
                     user_nickname = user.nickname
                     user_preferred_name = user.preferred_name
-                    user_birth_year = user.birth_year
-                    user_hometown = user.hometown
-                    user_main_city = user.main_city
+                    user_gender = user.gender
 
                     if not user.profile_completed:
                         actual_mode = "profile_collection"
                         print(f"[Realtime] 用户未完成信息收集，切换到 profile_collection 模式")
-                        print(f"[Realtime] 已知信息: nickname={user_nickname}, birth_year={user_birth_year}, hometown={user_hometown}, main_city={user_main_city}")
+                        print(f"[Realtime] 已知信息: nickname={user_nickname}, gender={user_gender}")
                     else:
-                        # 对话中使用称呼，如果没有称呼则用姓名
                         print(f"[Realtime] 用户信息: nickname={user_nickname}, preferred_name={user_preferred_name}")
             finally:
                 db.close()
@@ -205,16 +200,14 @@ async def realtime_dialog(websocket: WebSocket):
 
         # 创建豆包客户端
         client = DoubaoRealtimeClient(
-            speaker=speaker,  # 传入音色参数
-            recorder_name=recorder_name,  # 传入记录师名字
-            mode=actual_mode,  # 传入模式
-            user_nickname=display_name,  # 传入用户称呼（用于对话中称呼用户）
-            user_formal_name=user_nickname,  # 传入用户姓名（用于 profile_collection 模式）
-            user_birth_year=user_birth_year,  # 传入已知出生年份
-            user_hometown=user_hometown,  # 传入已知家乡
-            user_main_city=user_main_city,  # 传入已知常住城市
-            topic=custom_topic,  # 传入话题标题
-            chat_context=custom_context,  # 传入话题背景上下文
+            speaker=speaker,
+            recorder_name=recorder_name,
+            mode=actual_mode,
+            user_nickname=display_name,
+            user_formal_name=user_nickname,
+            user_gender=user_gender,
+            topic=custom_topic,
+            chat_context=custom_context,
             on_audio=lambda data: asyncio.create_task(on_audio(data)),
             on_text=lambda t, c: asyncio.create_task(on_text(t, c)),
             on_event=lambda e, p: asyncio.create_task(on_event(e, p)),
@@ -244,11 +237,14 @@ async def realtime_dialog(websocket: WebSocket):
         greeting = None
 
         if actual_mode == "profile_collection":
-            # 信息收集模式 - 使用用户姓名打招呼，询问称呼
-            if user_nickname:
-                greeting = f"您好{user_nickname}！我是{recorder_name}，很高兴认识您。在开始记录您的故事之前，我想先了解一下您。请问您希望我怎么称呼您呢？"
+            # 信息收集模式 - 使用敬称打招呼
+            if user_nickname and user_gender:
+                surname = user_nickname[0]
+                suffix = "先生" if user_gender == "男" else "女士"
+                default_title = f"{surname}{suffix}"
+                greeting = f"您好{default_title}，很高兴认识您，我是您的人生故事记录师{recorder_name}，请问您希望我怎么称呼您呢？"
             else:
-                greeting = f"您好！我是{recorder_name}，很高兴认识您。在开始记录您的故事之前，我想先了解一下您。请问您希望我怎么称呼您呢？"
+                greeting = f"您好，很高兴认识您，我是您的人生故事记录师{recorder_name}，请问您希望我怎么称呼您呢？"
         elif custom_greeting:
             # 使用前端传入的自定义开场白（用户选择的话题）
             greeting = custom_greeting

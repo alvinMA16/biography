@@ -122,9 +122,7 @@ class DoubaoRealtimeClient:
         mode: str = "normal",  # normal 或 profile_collection
         user_nickname: Optional[str] = None,  # 用户称呼（对话中使用）
         user_formal_name: Optional[str] = None,  # 用户姓名（管理员填写，用于 profile_collection）
-        user_birth_year: Optional[int] = None,  # 已知出生年份
-        user_hometown: Optional[str] = None,  # 已知家乡
-        user_main_city: Optional[str] = None,  # 已知常住城市
+        user_gender: Optional[str] = None,  # 用户性别（男/女）
         topic: Optional[str] = None,  # 话题标题
         chat_context: Optional[str] = None,  # 话题背景上下文
         on_audio: Optional[Callable[[bytes], None]] = None,
@@ -138,9 +136,7 @@ class DoubaoRealtimeClient:
         self.mode = mode
         self.user_nickname = user_nickname
         self.user_formal_name = user_formal_name
-        self.user_birth_year = user_birth_year
-        self.user_hometown = user_hometown
-        self.user_main_city = user_main_city
+        self.user_gender = user_gender
         self.topic = topic
         self.chat_context = chat_context
         self.on_audio = on_audio
@@ -189,9 +185,7 @@ class DoubaoRealtimeClient:
                 system_role = realtime_profile_collection.build(
                     recorder_name=self.recorder_name,
                     user_name=self.user_formal_name,
-                    birth_year=self.user_birth_year,
-                    hometown=self.user_hometown,
-                    main_city=self.user_main_city
+                    gender=self.user_gender,
                 )
                 speaking_style = realtime_profile_collection.SPEAKING_STYLE
             else:
