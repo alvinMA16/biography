@@ -94,7 +94,7 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
 class AdminCreateUserRequest(BaseModel):
     phone: str
     password: str
-    nickname: Optional[str] = None
+    nickname: str  # 姓名（必填）
     birth_year: Optional[int] = None
     hometown: Optional[str] = None
     main_city: Optional[str] = None
@@ -410,6 +410,7 @@ class AdminUserDetail(BaseModel):
     id: str
     phone: Optional[str] = None
     nickname: Optional[str] = None
+    preferred_name: Optional[str] = None  # 称呼（用户希望被怎么叫）
     birth_year: Optional[int] = None
     hometown: Optional[str] = None
     main_city: Optional[str] = None
@@ -507,6 +508,7 @@ def admin_get_user_detail(
         id=user.id,
         phone=user.phone,
         nickname=user.nickname,
+        preferred_name=user.preferred_name,
         birth_year=user.birth_year,
         hometown=user.hometown,
         main_city=user.main_city,

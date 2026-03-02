@@ -77,8 +77,10 @@ class ProfileService:
 
             updated = False
 
-            if result.get("nickname"):
-                user.nickname = result["nickname"]
+            # 注意：不再从对话中更新 nickname，nickname 由管理员填写
+            # 只更新 preferred_name（称呼）
+            if result.get("preferred_name"):
+                user.preferred_name = result["preferred_name"]
                 updated = True
 
             if result.get("birth_year"):
@@ -96,7 +98,7 @@ class ProfileService:
             # 无论是否完成，只要有更新就保存
             if updated:
                 db.commit()
-                print(f"[Profile] 已保存用户信息: nickname={user.nickname}, birth_year={user.birth_year}, hometown={user.hometown}, main_city={user.main_city}")
+                print(f"[Profile] 已保存用户信息: nickname={user.nickname}, preferred_name={user.preferred_name}, birth_year={user.birth_year}, hometown={user.hometown}, main_city={user.main_city}")
 
             # 如果有出生年份且时代记忆未生成，触发异步生成
             should_generate_era = (
@@ -104,8 +106,8 @@ class ProfileService:
                 user.era_memories_status in ('none', 'pending', 'failed')
             )
 
-            # 如果收集到了足够信息，标记为完成
-            if result.get("has_enough_info") or user.nickname:
+            # 如果收集到了足够信息，标记为完成（需要有称呼）
+            if result.get("has_enough_info") or user.preferred_name:
                 user.profile_completed = True
                 db.commit()
                 print(f"[Profile] 用户信息收集完成")

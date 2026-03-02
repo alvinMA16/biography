@@ -14,7 +14,8 @@ class User(Base):
     password_hash = Column(String(128), nullable=True)
     is_admin = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
-    nickname = Column(String(32), nullable=True)
+    nickname = Column(String(32), nullable=True)  # 姓名（管理员填写，不可被对话覆盖）
+    preferred_name = Column(String(32), nullable=True)  # 称呼（用户希望被怎么叫，如"老张"、"张爷爷"）
     settings = Column(JSON, default=dict)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

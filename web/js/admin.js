@@ -194,19 +194,18 @@ function closeCreateModal() {
 async function createUser() {
     const phone = document.getElementById('createPhone').value.trim();
     const password = document.getElementById('createPassword').value.trim();
-    if (!phone || !password) {
-        alert('请填写手机号和密码');
+    const nickname = document.getElementById('createNickname').value.trim();
+    if (!phone || !password || !nickname) {
+        alert('请填写手机号、密码和姓名');
         return;
     }
 
-    const payload = { phone, password };
+    const payload = { phone, password, nickname };
 
-    const nickname = document.getElementById('createNickname').value.trim();
     const birthYear = document.getElementById('createBirthYear').value.trim();
     const hometown = document.getElementById('createHometown').value.trim();
     const mainCity = document.getElementById('createMainCity').value.trim();
 
-    if (nickname) payload.nickname = nickname;
     if (birthYear) payload.birth_year = parseInt(birthYear, 10);
     if (hometown) payload.hometown = hometown;
     if (mainCity) payload.main_city = mainCity;
@@ -763,6 +762,7 @@ function renderUserDetail(detail) {
 
     // 基础信息
     document.getElementById('detailNickname').textContent = detail.nickname || '-';
+    document.getElementById('detailPreferredName').textContent = detail.preferred_name || '-';
     document.getElementById('detailBirthYear').textContent = detail.birth_year ? `${detail.birth_year}年` : '-';
     document.getElementById('detailHometown').textContent = detail.hometown || '-';
     document.getElementById('detailMainCity').textContent = detail.main_city || '-';
