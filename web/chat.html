@@ -26,6 +26,64 @@
         .welcome-modal .btn {
             min-width: 160px;
         }
+
+        /* 干预调试气泡 - 仅 debug 模式显示 */
+        .intervention-container {
+            position: fixed;
+            right: 16px;
+            top: 80px;
+            bottom: 80px;
+            width: 280px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+            pointer-events: none;
+            z-index: 100;
+        }
+        .intervention-bubble {
+            background: rgba(59, 130, 246, 0.9);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.5;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            animation: slideIn 0.3s ease;
+            pointer-events: auto;
+        }
+        .intervention-bubble.no-intervention {
+            background: rgba(107, 114, 128, 0.8);
+        }
+        .intervention-bubble .bubble-header {
+            font-size: 11px;
+            opacity: 0.8;
+            margin-bottom: 4px;
+        }
+        .intervention-bubble .bubble-content {
+            word-break: break-word;
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        /* 移动端隐藏干预气泡 */
+        @media (max-width: 768px) {
+            .intervention-container {
+                display: none;
+            }
+        }
     </style>
 </head>
 <body>
@@ -58,6 +116,9 @@
             </div>
         </main>
     </div>
+
+    <!-- 干预调试气泡容器 - 仅 debug 模式显示 -->
+    <div class="intervention-container" id="interventionContainer" style="display: none;"></div>
 
     <!-- 信息收集完成弹窗 -->
     <div class="modal welcome-modal" id="welcomeModal" style="display: none;">

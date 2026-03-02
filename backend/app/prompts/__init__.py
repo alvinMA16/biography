@@ -4,6 +4,14 @@
 # 实时语音对话
 from app.prompts import realtime_profile_collection  # 信息收集对话
 from app.prompts import realtime_chat                # 正常回忆对话
+from app.prompts import realtime_chat_enhanced       # 增强模式对话（精简版）
+from app.prompts import dialog_examples              # 预设对话示例
+
+# 干预判断
+from app.prompts import intervention_topic_drift     # 话题偏离判断
+from app.prompts import intervention_important_clue  # 重要线索判断
+from app.prompts import intervention_era_trigger     # 时代触发判断
+from app.prompts import intervention_stagnation      # 对话停滞判断
 
 # 内容生成
 from app.prompts import memoir            # 生成回忆录

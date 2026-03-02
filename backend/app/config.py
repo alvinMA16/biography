@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     # 话题生成配置
     topic_option_count: int = 4   # 首次生成的话题选项数量
 
+    # 增强模式 - 干预相关配置
+    intervention_enabled: bool = True           # 是否启用干预
+    intervention_timeout_ms: int = 8000         # 干预判断超时（毫秒）
+
     class Config:
         env_file = ".env"
 

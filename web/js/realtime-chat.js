@@ -3,6 +3,10 @@
 // Debug 模式检测
 const DEBUG_MODE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
+// 增强模式检测 - 通过 URL 参数或 localStorage 控制
+const urlParams = new URLSearchParams(window.location.search);
+const ENHANCED_MODE = urlParams.get('enhanced') === '1' || storage.get('useEnhancedMode') === 'true';
+
 let conversationId = null;
 let isProfileCollectionMode = false;  // 是否是信息收集模式
 let autoEndTriggered = false;  // 防止自动结束重复触发
@@ -148,9 +152,22 @@ async function connectWebSocket() {
         params.set('context', selectedContext);
     }
 
-    const wsUrl = `${wsProtocol}://${window.location.host}/api/realtime/dialog?${params.toString()}`;
+    // 根据模式选择端点
+    const endpoint = ENHANCED_MODE ? '/api/realtime-enhanced/dialog' : '/api/realtime/dialog';
+    const wsUrl = `${wsProtocol}://${window.location.host}${endpoint}?${params.toString()}`;
 
-    console.log('连接 WebSocket:', wsUrl, '记录师:', recorderInfo.name, '开场白:', selectedGreeting ? '自定义' : '默认');
+    console.log('连接 WebSocket:', wsUrl);
+    console.log('  - 模式:', ENHANCED_MODE ? '增强模式' : '普通模式');
+    console.log('  - 记录师:', recorderInfo.name);
+    console.log('  - 开场白:', selectedGreeting ? '自定义' : '默认');
+
+    // Debug 模式下显示干预容器
+    if (DEBUG_MODE && ENHANCED_MODE) {
+        const container = document.getElementById('interventionContainer');
+        if (container) {
+            container.style.display = 'flex';
+        }
+    }
 
     try {
         ws = new WebSocket(wsUrl);
@@ -237,6 +254,13 @@ function handleServerMessage(message) {
             // Debug 模式下显示调试信息
             if (DEBUG_MODE && message.message) {
                 showToast(message.message);
+            }
+            break;
+
+        case 'intervention':
+            // 干预状态通知 - 仅在 debug + 增强模式下显示
+            if (DEBUG_MODE && ENHANCED_MODE) {
+                showInterventionBubble(message.triggered, message.guidance);
             }
             break;
     }
@@ -464,6 +488,47 @@ function applyFade(samples) {
 }
 
 // ========== 界面控制 ==========
+
+// 显示干预调试气泡（仅 debug + 增强模式）
+function showInterventionBubble(triggered, guidance) {
+    const container = document.getElementById('interventionContainer');
+    if (!container) return;
+
+    const bubble = document.createElement('div');
+    bubble.className = 'intervention-bubble' + (triggered ? '' : ' no-intervention');
+
+    const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    if (triggered && guidance) {
+        bubble.innerHTML = `
+            <div class="bubble-header">${time} - 触发干预</div>
+            <div class="bubble-content">${guidance}</div>
+        `;
+    } else {
+        bubble.innerHTML = `
+            <div class="bubble-header">${time}</div>
+            <div class="bubble-content">无需干预</div>
+        `;
+    }
+
+    container.appendChild(bubble);
+
+    // 滚动到最新
+    container.scrollTop = container.scrollHeight;
+
+    // 限制气泡数量，超过 10 个删除最旧的
+    while (container.children.length > 10) {
+        container.removeChild(container.firstChild);
+    }
+
+    // 5 秒后淡出非触发的气泡
+    if (!triggered) {
+        setTimeout(() => {
+            bubble.style.animation = 'fadeOut 0.3s ease';
+            setTimeout(() => bubble.remove(), 300);
+        }, 3000);
+    }
+}
 
 // 显示轻量提示
 function showToast(message) {
