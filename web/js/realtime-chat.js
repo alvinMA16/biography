@@ -1,10 +1,10 @@
 // 实时对话页面逻辑 - 基于豆包实时对话API
 
-// Debug 模式检测
-const DEBUG_MODE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+// Debug 模式检测 - localhost 自动开启，线上可通过 ?debug=1 手动开启
+const urlParams = new URLSearchParams(window.location.search);
+const DEBUG_MODE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || urlParams.get('debug') === '1';
 
 // 增强模式检测 - 通过 URL 参数或 localStorage 控制
-const urlParams = new URLSearchParams(window.location.search);
 const ENHANCED_MODE = urlParams.get('enhanced') === '1' || storage.get('useEnhancedMode') === 'true';
 
 let conversationId = null;
