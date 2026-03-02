@@ -115,6 +115,7 @@ function renderUserTable(users) {
             <td>${u.conversation_count} / ${u.memoir_count}</td>
             <td>${u.created_at ? new Date(u.created_at).toLocaleDateString('zh-CN') : '-'}</td>
             <td class="admin-actions-cell">
+                <button class="admin-btn admin-btn-sm admin-btn-primary" onclick="viewUserDetail('${u.id}')">详情</button>
                 <button class="admin-btn admin-btn-sm" onclick="showEditModal('${u.id}')">编辑</button>
                 <button class="admin-btn admin-btn-sm ${isActive ? 'admin-btn-warn' : ''}" onclick="toggleUserActive('${u.id}', '${label}')">${isActive ? '禁用' : '启用'}</button>
                 <button class="admin-btn admin-btn-sm admin-btn-danger" onclick="deleteUser('${u.id}', '${label}')">删除</button>
@@ -467,6 +468,209 @@ async function deleteEraMemory(id) {
         logsLoaded = false;
     } catch (e) {
         alert('删除失败：' + e.message);
+    }
+}
+
+// ========== 用户详情 ==========
+
+let currentUserDetail = null;
+let currentMemoirDetail = null;
+
+async function viewUserDetail(userId) {
+    try {
+        const detail = await adminRequest(`/admin/user/${userId}/detail`);
+        currentUserDetail = detail;
+        renderUserDetail(detail);
+        showUserDetailTab();
+    } catch (e) {
+        alert('加载用户详情失败：' + e.message);
+    }
+}
+
+function showUserDetailTab() {
+    // 隐藏所有面板
+    document.querySelectorAll('.admin-tab-panel').forEach(panel => {
+        panel.classList.remove('active');
+    });
+    // 清除侧边栏选中态
+    document.querySelectorAll('.admin-nav-item[data-tab]').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    // 显示用户详情面板
+    document.getElementById('tabUserDetail').classList.add('active');
+}
+
+function backToUserList() {
+    currentUserDetail = null;
+    switchTab('users');
+}
+
+function renderUserDetail(detail) {
+    // 标题
+    const title = detail.nickname || detail.phone || '用户详情';
+    document.getElementById('userDetailTitle').textContent = title;
+
+    // 账号信息
+    document.getElementById('detailPhone').textContent = detail.phone || '-';
+    document.getElementById('detailStatus').innerHTML = detail.is_active
+        ? '<span class="admin-badge badge-yes">正常</span>'
+        : '<span class="admin-badge badge-no">已禁用</span>';
+    document.getElementById('detailProfileStatus').innerHTML = detail.profile_completed
+        ? '<span class="admin-badge badge-yes">已完成</span>'
+        : '<span class="admin-badge badge-no">未完成</span>';
+    document.getElementById('detailCreatedAt').textContent = detail.created_at
+        ? new Date(detail.created_at).toLocaleString('zh-CN')
+        : '-';
+
+    // 基础信息
+    document.getElementById('detailNickname').textContent = detail.nickname || '-';
+    document.getElementById('detailBirthYear').textContent = detail.birth_year ? `${detail.birth_year}年` : '-';
+    document.getElementById('detailHometown').textContent = detail.hometown || '-';
+    document.getElementById('detailMainCity').textContent = detail.main_city || '-';
+
+    // 回忆列表
+    document.getElementById('memoirCount').textContent = detail.memoirs.length;
+    renderMemoirList(detail.memoirs, detail.conversations);
+}
+
+function renderMemoirList(memoirs, conversations) {
+    const container = document.getElementById('memoirListContainer');
+
+    if (!memoirs.length) {
+        container.innerHTML = '<div class="admin-empty-state">暂无回忆录</div>';
+        return;
+    }
+
+    // 创建会话ID到会话的映射
+    const convMap = {};
+    conversations.forEach(c => { convMap[c.id] = c; });
+
+    container.innerHTML = memoirs.map(m => {
+        const isGenerating = m.status === 'generating';
+        const yearText = formatYearRange(m.year_start, m.year_end, m.time_period);
+        const timeText = formatTimeRange(m.conversation_start, m.conversation_end);
+
+        return `
+            <div class="admin-memoir-item ${isGenerating ? 'generating' : ''}" onclick="showMemoirDetail('${m.id}')">
+                <div class="admin-memoir-item-main">
+                    <div class="admin-memoir-item-title">
+                        <span class="title-text">${escapeHtml(m.title)}</span>
+                        ${isGenerating ? '<span class="admin-memoir-status">撰写中...</span>' : ''}
+                    </div>
+                    ${yearText ? `<div class="admin-memoir-item-year">${yearText}</div>` : ''}
+                    ${timeText ? `<div class="admin-memoir-item-time">${timeText}</div>` : ''}
+                </div>
+                <div class="admin-memoir-item-arrow">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 18l6-6-6-6"/>
+                    </svg>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function formatYearRange(yearStart, yearEnd, timePeriod) {
+    let parts = [];
+    if (yearStart && yearEnd) {
+        if (yearStart === yearEnd) {
+            parts.push(`${yearStart}年`);
+        } else {
+            parts.push(`${yearStart}-${yearEnd}年`);
+        }
+    } else if (yearStart) {
+        parts.push(`${yearStart}年`);
+    }
+    if (timePeriod) {
+        parts.push(timePeriod);
+    }
+    return parts.join(' · ');
+}
+
+function formatTimeRange(start, end) {
+    if (!start) return '';
+    if (start && end) {
+        const startDate = start.split(' ')[0];
+        const endDate = end.split(' ')[0];
+        const startTime = start.split(' ')[1];
+        const endTime = end.split(' ')[1];
+        if (startDate === endDate) {
+            return `${startDate} ${startTime} - ${endTime}`;
+        } else {
+            return `${start} - ${end}`;
+        }
+    }
+    return start;
+}
+
+function showMemoirDetail(memoirId) {
+    if (!currentUserDetail) return;
+
+    const memoir = currentUserDetail.memoirs.find(m => m.id === memoirId);
+    if (!memoir) return;
+
+    currentMemoirDetail = memoir;
+
+    // 查找关联的会话
+    const conversation = memoir.conversation_id
+        ? currentUserDetail.conversations.find(c => c.id === memoir.conversation_id)
+        : null;
+
+    // 设置标题
+    document.getElementById('memoirDetailTitle').textContent = memoir.title;
+
+    // 设置元信息
+    const yearText = formatYearRange(memoir.year_start, memoir.year_end, memoir.time_period);
+    const timeText = formatTimeRange(memoir.conversation_start, memoir.conversation_end);
+    let metaHtml = '';
+    if (yearText) metaHtml += `<span class="meta-year">${yearText}</span>`;
+    if (timeText) metaHtml += `<span class="meta-time">${timeText}</span>`;
+    document.getElementById('memoirMeta').innerHTML = metaHtml;
+
+    // 设置回忆录内容
+    document.getElementById('memoirText').textContent = memoir.content || '（内容为空）';
+
+    // 设置对话记录
+    if (conversation && conversation.messages && conversation.messages.length > 0) {
+        document.getElementById('transcriptList').innerHTML = conversation.messages.map(msg => {
+            const roleText = msg.role === 'user' ? '用户' : '记录师';
+            const roleClass = msg.role === 'user' ? 'user' : 'assistant';
+            return `
+                <div class="admin-transcript-message ${roleClass}">
+                    <div class="admin-transcript-role">${roleText}</div>
+                    <div class="admin-transcript-content">${escapeHtml(msg.content)}</div>
+                </div>
+            `;
+        }).join('');
+    } else {
+        document.getElementById('transcriptList').innerHTML = '<div class="admin-empty-state">暂无对话记录</div>';
+    }
+
+    // 默认显示回忆录标签
+    switchMemoirTab('memoir');
+
+    // 显示弹窗
+    document.getElementById('memoirDetailModal').style.display = 'flex';
+}
+
+function closeMemoirDetailModal() {
+    document.getElementById('memoirDetailModal').style.display = 'none';
+    currentMemoirDetail = null;
+}
+
+function switchMemoirTab(tab) {
+    // 切换标签按钮状态
+    document.querySelectorAll('.admin-memoir-tab').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tab);
+    });
+    // 切换内容面板
+    document.querySelectorAll('.admin-memoir-tab-panel').forEach(panel => {
+        panel.classList.remove('active');
+    });
+    if (tab === 'memoir') {
+        document.getElementById('memoirTabContent').classList.add('active');
+    } else {
+        document.getElementById('transcriptTabContent').classList.add('active');
     }
 }
 

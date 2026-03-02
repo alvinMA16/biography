@@ -1744,3 +1744,319 @@ body {
         align-items: center;
     }
 }
+
+/* ============ Admin 用户详情页 ============ */
+
+.admin-header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.admin-header-left h1 {
+    margin: 0;
+}
+
+.admin-btn-primary {
+    background: var(--color-accent);
+    color: white;
+    border-color: var(--color-accent);
+}
+
+.admin-btn-primary:hover {
+    background: var(--color-accent-light);
+    border-color: var(--color-accent-light);
+    color: white;
+}
+
+.admin-user-detail-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.admin-user-info-card,
+.admin-memoir-list-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 12px rgba(0,0,0,0.05);
+    overflow: hidden;
+}
+
+.admin-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--color-bg-dark);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.admin-card-header h3 {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 0.95em;
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.admin-count-badge {
+    background: var(--color-accent);
+    color: white;
+    font-size: 0.78em;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.admin-card-body {
+    padding: 20px;
+}
+
+.admin-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+}
+
+.admin-info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.admin-info-item label {
+    font-size: 0.82em;
+    color: var(--color-text-light);
+}
+
+.admin-info-item span {
+    font-size: 0.95em;
+    color: var(--color-text);
+}
+
+.admin-empty-state {
+    text-align: center;
+    color: var(--color-text-light);
+    padding: 32px 20px;
+    font-size: 0.9em;
+}
+
+/* 回忆列表项 */
+.admin-memoir-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--color-border);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.admin-memoir-item:last-child {
+    border-bottom: none;
+}
+
+.admin-memoir-item:hover {
+    background: var(--color-bg-dark);
+}
+
+.admin-memoir-item.generating {
+    opacity: 0.7;
+}
+
+.admin-memoir-item-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.admin-memoir-item-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.admin-memoir-item-title .title-text {
+    font-size: 0.95em;
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.admin-memoir-status {
+    font-size: 0.78em;
+    color: var(--color-accent);
+    background: rgba(139, 69, 19, 0.08);
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.admin-memoir-item-year {
+    font-size: 0.85em;
+    color: var(--color-accent);
+    margin-bottom: 4px;
+}
+
+.admin-memoir-item-time {
+    font-size: 0.82em;
+    color: var(--color-text-light);
+}
+
+.admin-memoir-item-arrow {
+    color: var(--color-text-light);
+    flex-shrink: 0;
+    margin-left: 12px;
+}
+
+/* 回忆详情弹窗 */
+.admin-memoir-detail-modal {
+    max-width: 720px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.admin-memoir-detail-modal .modal-body {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+}
+
+.admin-memoir-detail-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--color-border);
+    padding: 0 24px;
+    background: var(--color-bg-dark);
+}
+
+.admin-memoir-tab {
+    padding: 12px 20px;
+    font-family: var(--font-sans);
+    font-size: 0.9em;
+    color: var(--color-text-light);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-bottom: -1px;
+}
+
+.admin-memoir-tab:hover {
+    color: var(--color-text);
+}
+
+.admin-memoir-tab.active {
+    color: var(--color-accent);
+    border-bottom-color: var(--color-accent);
+    font-weight: 500;
+}
+
+.admin-memoir-detail-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+}
+
+.admin-memoir-tab-panel {
+    display: none;
+}
+
+.admin-memoir-tab-panel.active {
+    display: block;
+}
+
+.admin-memoir-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.admin-memoir-meta .meta-year {
+    font-size: 0.9em;
+    color: var(--color-accent);
+    font-weight: 500;
+}
+
+.admin-memoir-meta .meta-time {
+    font-size: 0.85em;
+    color: var(--color-text-light);
+}
+
+.admin-memoir-text {
+    font-family: var(--font-serif);
+    font-size: 1em;
+    line-height: 1.9;
+    color: var(--color-text);
+    white-space: pre-wrap;
+}
+
+/* 对话记录 */
+.admin-transcript-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.admin-transcript-message {
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: var(--color-bg-dark);
+}
+
+.admin-transcript-message.user {
+    background: rgba(139, 69, 19, 0.06);
+}
+
+.admin-transcript-message.assistant {
+    background: var(--color-bg-dark);
+}
+
+.admin-transcript-role {
+    font-size: 0.78em;
+    font-weight: 500;
+    color: var(--color-text-light);
+    margin-bottom: 6px;
+}
+
+.admin-transcript-message.user .admin-transcript-role {
+    color: var(--color-accent);
+}
+
+.admin-transcript-content {
+    font-size: 0.9em;
+    line-height: 1.6;
+    color: var(--color-text);
+    white-space: pre-wrap;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .admin-header-left {
+        gap: 12px;
+    }
+
+    .admin-header-left h1 {
+        font-size: 1em;
+    }
+
+    .admin-info-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .admin-memoir-detail-modal {
+        max-width: 100%;
+        margin: 0 8px;
+        max-height: 90vh;
+    }
+}
+
+@media (max-width: 480px) {
+    .admin-info-grid {
+        grid-template-columns: 1fr;
+    }
+}

@@ -352,6 +352,132 @@ def admin_toggle_user_active(
     return {"user_id": user.id, "is_active": user.is_active}
 
 
+# ========== 管理员：获取用户详情 ==========
+
+
+class AdminMemoirDetailItem(BaseModel):
+    id: str
+    title: str
+    content: Optional[str] = None
+    status: str
+    year_start: Optional[int] = None
+    year_end: Optional[int] = None
+    time_period: Optional[str] = None
+    conversation_id: Optional[str] = None
+    conversation_start: Optional[str] = None
+    conversation_end: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+
+class AdminMessageItem(BaseModel):
+    id: str
+    role: str
+    content: str
+    created_at: Optional[datetime] = None
+
+
+class AdminConversationItem(BaseModel):
+    id: str
+    title: Optional[str] = None
+    topic: Optional[str] = None
+    summary: Optional[str] = None
+    status: str
+    created_at: Optional[datetime] = None
+    messages: List[AdminMessageItem] = []
+
+
+class AdminUserDetail(BaseModel):
+    id: str
+    phone: Optional[str] = None
+    nickname: Optional[str] = None
+    birth_year: Optional[int] = None
+    hometown: Optional[str] = None
+    main_city: Optional[str] = None
+    profile_completed: bool = False
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+    memoirs: List[AdminMemoirDetailItem] = []
+    conversations: List[AdminConversationItem] = []
+
+
+@admin_router.get("/user/{user_id}/detail", response_model=AdminUserDetail)
+def admin_get_user_detail(
+    user_id: str,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin_key),
+):
+    """管理员获取用户详情，包括回忆录和对话记录"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+
+    # 获取用户的回忆录列表
+    memoirs = db.query(Memoir).filter(Memoir.user_id == user_id).order_by(Memoir.order_index.asc()).all()
+    memoir_items = []
+    for m in memoirs:
+        item = AdminMemoirDetailItem(
+            id=m.id,
+            title=m.title,
+            content=m.content,
+            status=m.status or "completed",
+            year_start=m.year_start,
+            year_end=m.year_end,
+            time_period=m.time_period,
+            conversation_id=m.conversation_id,
+            conversation_start=None,
+            conversation_end=None,
+            created_at=m.created_at,
+        )
+        # 获取关联对话的时间范围
+        if m.conversation and m.conversation.messages:
+            messages = m.conversation.messages
+            if messages:
+                first_msg = messages[0]
+                if first_msg.created_at:
+                    item.conversation_start = first_msg.created_at.strftime("%Y-%m-%d %H:%M")
+                last_msg = messages[-1]
+                if last_msg.created_at:
+                    item.conversation_end = last_msg.created_at.strftime("%Y-%m-%d %H:%M")
+        memoir_items.append(item)
+
+    # 获取用户的对话列表及消息
+    conversations = db.query(Conversation).filter(Conversation.user_id == user_id).order_by(Conversation.created_at.desc()).all()
+    conversation_items = []
+    for c in conversations:
+        conv_item = AdminConversationItem(
+            id=c.id,
+            title=c.title,
+            topic=c.topic,
+            summary=c.summary,
+            status=c.status,
+            created_at=c.created_at,
+            messages=[
+                AdminMessageItem(
+                    id=msg.id,
+                    role=msg.role,
+                    content=msg.content,
+                    created_at=msg.created_at,
+                )
+                for msg in (c.messages or [])
+            ],
+        )
+        conversation_items.append(conv_item)
+
+    return AdminUserDetail(
+        id=user.id,
+        phone=user.phone,
+        nickname=user.nickname,
+        birth_year=user.birth_year,
+        hometown=user.hometown,
+        main_city=user.main_city,
+        profile_completed=user.profile_completed or False,
+        is_active=user.is_active if user.is_active is not None else True,
+        created_at=user.created_at,
+        memoirs=memoir_items,
+        conversations=conversation_items,
+    )
+
+
 # ========== 管理员：操作日志 ==========
 
 class AuditLogItem(BaseModel):

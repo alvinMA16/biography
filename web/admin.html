@@ -131,6 +131,86 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- 用户详情页面 -->
+                <div id="tabUserDetail" class="admin-tab-panel">
+                    <header class="admin-panel-header">
+                        <div class="admin-header-left">
+                            <button class="admin-btn admin-btn-sm" onclick="backToUserList()">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                                </svg>
+                                返回
+                            </button>
+                            <h1 id="userDetailTitle">用户详情</h1>
+                        </div>
+                    </header>
+                    <div class="admin-panel-content admin-user-detail-content">
+                        <!-- 用户基本信息卡片 -->
+                        <div class="admin-card admin-user-info-card">
+                            <div class="admin-card-header">
+                                <h3>账号信息</h3>
+                            </div>
+                            <div class="admin-card-body">
+                                <div class="admin-info-grid">
+                                    <div class="admin-info-item">
+                                        <label>手机号</label>
+                                        <span id="detailPhone">-</span>
+                                    </div>
+                                    <div class="admin-info-item">
+                                        <label>账号状态</label>
+                                        <span id="detailStatus">-</span>
+                                    </div>
+                                    <div class="admin-info-item">
+                                        <label>资料状态</label>
+                                        <span id="detailProfileStatus">-</span>
+                                    </div>
+                                    <div class="admin-info-item">
+                                        <label>创建时间</label>
+                                        <span id="detailCreatedAt">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="admin-card admin-user-info-card">
+                            <div class="admin-card-header">
+                                <h3>基础信息</h3>
+                            </div>
+                            <div class="admin-card-body">
+                                <div class="admin-info-grid">
+                                    <div class="admin-info-item">
+                                        <label>姓名</label>
+                                        <span id="detailNickname">-</span>
+                                    </div>
+                                    <div class="admin-info-item">
+                                        <label>出生年份</label>
+                                        <span id="detailBirthYear">-</span>
+                                    </div>
+                                    <div class="admin-info-item">
+                                        <label>家乡</label>
+                                        <span id="detailHometown">-</span>
+                                    </div>
+                                    <div class="admin-info-item">
+                                        <label>常住城市</label>
+                                        <span id="detailMainCity">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 回忆列表 -->
+                        <div class="admin-card admin-memoir-list-card">
+                            <div class="admin-card-header">
+                                <h3>回忆列表</h3>
+                                <span class="admin-count-badge" id="memoirCount">0</span>
+                            </div>
+                            <div class="admin-card-body" id="memoirListContainer">
+                                <div class="admin-empty-state">暂无回忆录</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </main>
         </div>
     </div>
@@ -268,6 +348,33 @@
                 <div class="admin-modal-footer">
                     <button class="admin-modal-btn admin-modal-btn-cancel" onclick="closeEraMemoryModal()">取消</button>
                     <button class="admin-modal-btn admin-modal-btn-confirm" onclick="saveEraMemory()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 回忆详情弹窗 -->
+    <div class="modal" id="memoirDetailModal" style="display:none;" onclick="if(event.target===this)closeMemoirDetailModal()">
+        <div class="modal-content admin-memoir-detail-modal">
+            <div class="modal-header">
+                <h2 id="memoirDetailTitle">回忆详情</h2>
+                <button class="btn-close" onclick="closeMemoirDetailModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="admin-memoir-detail-tabs">
+                    <button class="admin-memoir-tab active" data-tab="memoir" onclick="switchMemoirTab('memoir')">回忆录</button>
+                    <button class="admin-memoir-tab" data-tab="transcript" onclick="switchMemoirTab('transcript')">对话记录</button>
+                </div>
+                <div class="admin-memoir-detail-content">
+                    <!-- 回忆录内容 -->
+                    <div id="memoirTabContent" class="admin-memoir-tab-panel active">
+                        <div class="admin-memoir-meta" id="memoirMeta"></div>
+                        <div class="admin-memoir-text" id="memoirText">暂无内容</div>
+                    </div>
+                    <!-- 对话记录 -->
+                    <div id="transcriptTabContent" class="admin-memoir-tab-panel">
+                        <div class="admin-transcript-list" id="transcriptList">暂无对话记录</div>
+                    </div>
                 </div>
             </div>
         </div>
