@@ -2595,7 +2595,7 @@ body {
     border-radius: 6px;
     font-size: 12px;
     font-weight: 400;
-    white-space: nowrap;
+    width: max-content;
     max-width: 280px;
     white-space: normal;
     text-align: center;
