@@ -16,6 +16,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     nickname = Column(String(32), nullable=True)  # 姓名（管理员填写，不可被对话覆盖）
     preferred_name = Column(String(32), nullable=True)  # 称呼（用户希望被怎么叫，如"老张"、"张爷爷"）
+    gender = Column(String(10), nullable=True)  # 性别（男/女）
     settings = Column(JSON, default=dict)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -58,6 +59,18 @@ class EraMemoryPreset(Base):
     end_year = Column(Integer, nullable=False)  # 事件结束年份（可等于 start_year）
     category = Column(String(50), nullable=True)  # 分类：历史事件/流行文化/社会风潮/品牌零食等
     content = Column(Text, nullable=False)  # 事件/现象描述
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class WelcomeMessage(Base):
+    """首页激励语"""
+    __tablename__ = "welcome_messages"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    content = Column(Text, nullable=False)  # 激励语内容
+    is_active = Column(Boolean, default=True)  # 是否启用
+    sort_order = Column(Integer, default=0)  # 排序权重
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

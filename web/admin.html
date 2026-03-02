@@ -41,6 +41,10 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                         时代记忆
                     </button>
+                    <button class="admin-nav-item" data-tab="welcome-messages" onclick="switchTab('welcome-messages')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/></svg>
+                        激励语
+                    </button>
                     <button class="admin-nav-item" data-tab="monitoring" onclick="switchTab('monitoring')">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
                         数据监控
@@ -127,6 +131,31 @@
                                     </tr>
                                 </thead>
                                 <tbody id="eraMemoryTableBody">
+                                    <tr><td colspan="4" class="admin-table-empty">加载中...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 激励语 Tab -->
+                <div id="tabWelcomeMessages" class="admin-tab-panel">
+                    <header class="admin-panel-header">
+                        <h1>激励语管理</h1>
+                        <button class="btn btn-primary" onclick="showWelcomeMessageModal()">新增激励语</button>
+                    </header>
+                    <div class="admin-panel-content">
+                        <div class="admin-card">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>内容</th>
+                                        <th style="width:80px;">排序</th>
+                                        <th style="width:80px;">状态</th>
+                                        <th style="width:150px;">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="welcomeMessageTableBody">
                                     <tr><td colspan="4" class="admin-table-empty">加载中...</td></tr>
                                 </tbody>
                             </table>
@@ -504,6 +533,10 @@
                                             <span id="detailNickname">-</span>
                                         </div>
                                         <div class="admin-info-row">
+                                            <label>性别</label>
+                                            <span id="detailGender">-</span>
+                                        </div>
+                                        <div class="admin-info-row">
                                             <label>称呼</label>
                                             <span id="detailPreferredName">-</span>
                                         </div>
@@ -587,6 +620,14 @@
                         <input type="text" id="createNickname" class="admin-input" placeholder="老人姓名" required>
                     </div>
                     <div class="admin-form-group">
+                        <label>性别 <span class="required">*</span></label>
+                        <select id="createGender" class="admin-input" required>
+                            <option value="">请选择</option>
+                            <option value="男">男</option>
+                            <option value="女">女</option>
+                        </select>
+                    </div>
+                    <div class="admin-form-group">
                         <label>出生年份</label>
                         <input type="number" id="createBirthYear" class="admin-input" placeholder="如 1950" min="1900" max="2000">
                     </div>
@@ -620,6 +661,14 @@
                     <div class="admin-form-group">
                         <label>姓名</label>
                         <input type="text" id="editNickname" class="admin-input" placeholder="老人姓名">
+                    </div>
+                    <div class="admin-form-group">
+                        <label>性别</label>
+                        <select id="editGender" class="admin-input">
+                            <option value="">请选择</option>
+                            <option value="男">男</option>
+                            <option value="女">女</option>
+                        </select>
                     </div>
                     <div class="admin-form-group">
                         <label>出生年份</label>
@@ -754,6 +803,33 @@
                     <div id="transcriptTabContent" class="admin-memoir-tab-panel">
                         <div class="admin-transcript-list" id="transcriptList">暂无对话记录</div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 激励语编辑弹窗 -->
+    <div class="modal" id="welcomeMessageModal" style="display:none;" onclick="if(event.target===this)closeWelcomeMessageModal()">
+        <div class="modal-content admin-modal-form">
+            <div class="modal-header">
+                <h2 id="welcomeMessageModalTitle">新增激励语</h2>
+                <button class="btn-close" onclick="closeWelcomeMessageModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="welcomeMessageId">
+                <div class="admin-form-grid">
+                    <div class="admin-form-group admin-form-full">
+                        <label>激励语内容 <span class="required">*</span></label>
+                        <textarea id="welcomeMessageContent" class="admin-input" rows="3" placeholder="请输入激励语内容"></textarea>
+                    </div>
+                    <div class="admin-form-group">
+                        <label>排序权重</label>
+                        <input type="number" id="welcomeMessageSortOrder" class="admin-input" placeholder="0" min="0" value="0">
+                    </div>
+                </div>
+                <div class="admin-modal-footer">
+                    <button class="admin-modal-btn admin-modal-btn-cancel" onclick="closeWelcomeMessageModal()">取消</button>
+                    <button class="admin-modal-btn admin-modal-btn-confirm" onclick="saveWelcomeMessage()">保存</button>
                 </div>
             </div>
         </div>

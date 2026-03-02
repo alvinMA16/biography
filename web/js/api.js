@@ -88,6 +88,10 @@ const api = {
                 method: 'POST',
             });
         },
+
+        async getWelcomeMessages() {
+            return api.request('/user/welcome-messages');
+        },
     },
 
     // 对话相关

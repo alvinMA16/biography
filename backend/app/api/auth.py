@@ -11,11 +11,12 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db, SessionLocal
-from app.models import User, TopicCandidate
+from app.models import User, TopicCandidate, WelcomeMessage
 from app.models.conversation import Conversation, Message
 from app.models.memoir import Memoir
 from app.models.audit_log import AuditLog
 from app.auth import hash_password, verify_password, create_token, verify_admin_key
+from app.services.profile_service import auto_set_preferred_name
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +96,7 @@ class AdminCreateUserRequest(BaseModel):
     phone: str
     password: str
     nickname: str  # 姓名（必填）
+    gender: str  # 性别（必填：男/女）
     birth_year: Optional[int] = None
     hometown: Optional[str] = None
     main_city: Optional[str] = None
@@ -125,6 +127,7 @@ def admin_create_user(
         phone=req.phone,
         password_hash=hash_password(req.password),
         nickname=req.nickname,
+        gender=req.gender,
         birth_year=req.birth_year,
         hometown=req.hometown,
         main_city=req.main_city,
@@ -134,6 +137,7 @@ def admin_create_user(
         user.profile_completed = True
 
     db.add(user)
+    auto_set_preferred_name(user)
     db.commit()
     db.refresh(user)
 
@@ -153,6 +157,7 @@ class AdminUserItem(BaseModel):
     id: str
     phone: Optional[str] = None
     nickname: Optional[str] = None
+    gender: Optional[str] = None
     birth_year: Optional[int] = None
     hometown: Optional[str] = None
     main_city: Optional[str] = None
@@ -188,6 +193,7 @@ def admin_list_users(
             id=u.id,
             phone=u.phone,
             nickname=u.nickname,
+            gender=u.gender,
             birth_year=u.birth_year,
             hometown=u.hometown,
             main_city=u.main_city,
@@ -205,6 +211,7 @@ def admin_list_users(
 
 class AdminUpdateUserRequest(BaseModel):
     nickname: Optional[str] = None
+    gender: Optional[str] = None
     birth_year: Optional[int] = None
     hometown: Optional[str] = None
     main_city: Optional[str] = None
@@ -227,6 +234,8 @@ def admin_update_user(
 
     if req.nickname is not None:
         user.nickname = req.nickname
+    if req.gender is not None:
+        user.gender = req.gender
     if req.birth_year is not None:
         user.birth_year = req.birth_year
     if req.hometown is not None:
@@ -238,6 +247,7 @@ def admin_update_user(
     if user.nickname and user.birth_year and user.hometown:
         user.profile_completed = True
 
+    auto_set_preferred_name(user)
     db.commit()
     db.refresh(user)
 
@@ -417,6 +427,7 @@ class AdminUserDetail(BaseModel):
     id: str
     phone: Optional[str] = None
     nickname: Optional[str] = None
+    gender: Optional[str] = None
     preferred_name: Optional[str] = None  # 称呼（用户希望被怎么叫）
     birth_year: Optional[int] = None
     hometown: Optional[str] = None
@@ -515,6 +526,7 @@ def admin_get_user_detail(
         id=user.id,
         phone=user.phone,
         nickname=user.nickname,
+        gender=user.gender,
         preferred_name=user.preferred_name,
         birth_year=user.birth_year,
         hometown=user.hometown,
@@ -1095,4 +1107,126 @@ def admin_delete_era_memory(
     era_memory_service.delete(db, memory_id)
     _log_action(db, "delete_era_memory", None, year_range,
                 f"删除时代记忆：{content_preview}...")
+    return {"success": True}
+
+
+# ========== 管理员：激励语管理 ==========
+
+class WelcomeMessageItem(BaseModel):
+    id: str
+    content: str
+    is_active: bool = True
+    sort_order: int = 0
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class WelcomeMessageCreateRequest(BaseModel):
+    content: str
+    is_active: bool = True
+    sort_order: int = 0
+
+
+class WelcomeMessageUpdateRequest(BaseModel):
+    content: Optional[str] = None
+    is_active: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+
+@admin_router.get("/welcome-messages", response_model=List[WelcomeMessageItem])
+def admin_list_welcome_messages(
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin_key),
+):
+    """管理员获取所有激励语（含禁用的）"""
+    messages = db.query(WelcomeMessage).order_by(WelcomeMessage.sort_order.asc(), WelcomeMessage.created_at.asc()).all()
+    return [
+        WelcomeMessageItem(
+            id=m.id,
+            content=m.content,
+            is_active=m.is_active,
+            sort_order=m.sort_order,
+            created_at=m.created_at,
+            updated_at=m.updated_at,
+        )
+        for m in messages
+    ]
+
+
+@admin_router.post("/welcome-messages", response_model=WelcomeMessageItem)
+def admin_create_welcome_message(
+    req: WelcomeMessageCreateRequest,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin_key),
+):
+    """管理员新增激励语"""
+    msg = WelcomeMessage(
+        content=req.content,
+        is_active=req.is_active,
+        sort_order=req.sort_order,
+    )
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
+    _log_action(db, "create_welcome_message", None, None,
+                f"新增激励语：{msg.content[:50]}")
+    return WelcomeMessageItem(
+        id=msg.id,
+        content=msg.content,
+        is_active=msg.is_active,
+        sort_order=msg.sort_order,
+        created_at=msg.created_at,
+        updated_at=msg.updated_at,
+    )
+
+
+@admin_router.put("/welcome-messages/{message_id}", response_model=WelcomeMessageItem)
+def admin_update_welcome_message(
+    message_id: str,
+    req: WelcomeMessageUpdateRequest,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin_key),
+):
+    """管理员编辑激励语"""
+    msg = db.query(WelcomeMessage).filter(WelcomeMessage.id == message_id).first()
+    if not msg:
+        raise HTTPException(status_code=404, detail="激励语不存在")
+
+    if req.content is not None:
+        msg.content = req.content
+    if req.is_active is not None:
+        msg.is_active = req.is_active
+    if req.sort_order is not None:
+        msg.sort_order = req.sort_order
+
+    db.commit()
+    db.refresh(msg)
+    _log_action(db, "update_welcome_message", None, None,
+                f"编辑激励语：{msg.content[:50]}")
+    return WelcomeMessageItem(
+        id=msg.id,
+        content=msg.content,
+        is_active=msg.is_active,
+        sort_order=msg.sort_order,
+        created_at=msg.created_at,
+        updated_at=msg.updated_at,
+    )
+
+
+@admin_router.delete("/welcome-messages/{message_id}")
+def admin_delete_welcome_message(
+    message_id: str,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin_key),
+):
+    """管理员删除激励语"""
+    msg = db.query(WelcomeMessage).filter(WelcomeMessage.id == message_id).first()
+    if not msg:
+        raise HTTPException(status_code=404, detail="激励语不存在")
+
+    content_preview = msg.content[:50] if msg.content else ""
+    db.delete(msg)
+    db.commit()
+    _log_action(db, "delete_welcome_message", None, None,
+                f"删除激励语：{content_preview}")
     return {"success": True}

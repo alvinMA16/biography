@@ -3,6 +3,63 @@
 // Debug 模式检测
 const DEBUG_MODE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
+// ========== 动态欢迎语 ==========
+
+const WELCOME_MESSAGES = [
+    '不用等到什么"大事"，先写下一小段就很好。',
+    '有些细节趁现在还清楚，记下来就不怕它慢慢淡掉。',
+    '别让你的故事只躺在相册和聊天记录里，我们把它慢慢收进回忆录。',
+    '很多当时觉得普通的瞬间，后来回头看才发现特别珍贵。',
+    '如果哪天你想不起细节了也没关系，这里会替你把它们留着。',
+];
+
+const GENERAL_GREETINGS = ['你好呀', '嗨', '您好', '你好'];
+
+function getTimeGreeting() {
+    const hour = new Date().getHours();
+    if (hour >= 6 && hour < 11) return '早上好';
+    if (hour >= 11 && hour < 13) return '中午好';
+    if (hour >= 13 && hour < 18) return '下午好';
+    if (hour >= 18 && hour < 23) return '晚上好';
+    return '夜深了';
+}
+
+function getGreeting() {
+    // 约 30% 概率用通用问候，70% 用时间问候
+    if (Math.random() < 0.3) {
+        return GENERAL_GREETINGS[Math.floor(Math.random() * GENERAL_GREETINGS.length)];
+    }
+    return getTimeGreeting();
+}
+
+function getDisplayName(profile) {
+    // 优先 preferred_name，其次 nickname，最后用姓氏+先生/女士
+    if (profile.preferred_name) return profile.preferred_name;
+    if (profile.nickname) {
+        // 如果有 gender，用姓氏+先生/女士
+        if (profile.gender && profile.nickname.length >= 1) {
+            const surname = profile.nickname.charAt(0);
+            const suffix = profile.gender === '女' ? '女士' : '先生';
+            return surname + suffix;
+        }
+        return profile.nickname;
+    }
+    return '';
+}
+
+function updateWelcomeText(profile, messages) {
+    const container = document.getElementById('welcomeText');
+    if (!container) return;
+
+    const name = getDisplayName(profile);
+    const greetWord = getGreeting();
+    const greeting = name ? `${greetWord}，${name}。` : `${greetWord}。`;
+    const pool = (messages && messages.length > 0) ? messages : WELCOME_MESSAGES;
+    const message = pool[Math.floor(Math.random() * pool.length)];
+
+    container.innerHTML = `<p>${greeting}</p><p style="white-space:pre-line">${message}</p>`;
+}
+
 // 初始化应用
 async function initApp() {
     // 检查是否已登录
@@ -25,6 +82,20 @@ async function initApp() {
     // 检查用户是否存在且完成了信息收集
     try {
         const profile = await api.user.getProfile();
+
+        // 动态加载激励语，失败时使用硬编码 fallback
+        let welcomeMessages = null;
+        try {
+            const msgs = await api.user.getWelcomeMessages();
+            if (msgs && msgs.length > 0) {
+                welcomeMessages = msgs.map(m => m.content);
+            }
+        } catch (e) {
+            console.warn('加载激励语失败，使用默认文案:', e);
+        }
+
+        // 更新欢迎语
+        updateWelcomeText(profile, welcomeMessages);
 
         if (profile.profile_completed) {
             // 用户已完成信息收集，清除临时标记，正常显示主页

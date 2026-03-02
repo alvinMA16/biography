@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
 from app.database import get_db
-from app.models import User, Conversation, Message, Memoir
+from app.models import User, Conversation, Message, Memoir, WelcomeMessage
 from app.auth import get_current_user
 
 router = APIRouter()
@@ -30,6 +30,8 @@ class UserResponse(BaseModel):
 
 class UserProfileResponse(BaseModel):
     nickname: Optional[str]
+    preferred_name: Optional[str]
+    gender: Optional[str]
     birth_year: Optional[int]
     hometown: Optional[str]
     main_city: Optional[str]
@@ -68,6 +70,8 @@ def get_user_profile(current_user: User = Depends(get_current_user)):
     """获取用户基础信息（用于判断是否需要信息收集）"""
     return UserProfileResponse(
         nickname=current_user.nickname,
+        preferred_name=current_user.preferred_name,
+        gender=current_user.gender,
         birth_year=current_user.birth_year,
         hometown=current_user.hometown,
         main_city=current_user.main_city,
@@ -136,6 +140,18 @@ def complete_profile(
     current_user.profile_completed = True
     db.commit()
     return {"message": "已完成"}
+
+
+@router.get("/welcome-messages")
+def get_welcome_messages(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """获取启用的激励语列表"""
+    messages = db.query(WelcomeMessage).filter(
+        WelcomeMessage.is_active == True
+    ).order_by(WelcomeMessage.sort_order.asc()).all()
+    return [{"id": m.id, "content": m.content} for m in messages]
 
 
 @router.delete("/me")

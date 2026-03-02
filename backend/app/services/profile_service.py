@@ -13,6 +13,22 @@ from app.models import User, Conversation, Message
 from app.services.topic_service import topic_service
 
 
+def auto_set_preferred_name(user):
+    """
+    自动生成 preferred_name（称呼）。
+    前提：nickname 和 gender 都存在。
+    - preferred_name 为空 → 姓 + 先生/女士
+    - preferred_name == nickname（LLM 把全名当称呼了）→ 同上
+    - 其他情况（如"老张"、"张爷爷"）→ 不动
+    """
+    if not user.nickname or not user.gender:
+        return
+    if not user.preferred_name or user.preferred_name == user.nickname:
+        suffix = "先生" if user.gender == "男" else "女士"
+        user.preferred_name = user.nickname[0] + suffix
+        print(f"[Profile] 自动生成称呼: {user.preferred_name}")
+
+
 class ProfileService:
     def __init__(self):
         self.client = OpenAI(
@@ -39,6 +55,12 @@ class ProfileService:
             print(f"[Profile] 对话消息为空")
             return False
 
+        # 先查用户，获取 nickname 传给 prompt 做同音字判断
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            print(f"[Profile] 用户不存在: {user_id}")
+            return False
+
         # 构建对话文本
         conversation_text = "\n".join([
             f"{'用户' if msg.role == 'user' else '记录师'}: {msg.content}"
@@ -47,7 +69,7 @@ class ProfileService:
 
         # 使用 LLM 提取信息
         from app.prompts import profile_extraction
-        prompt = profile_extraction.build(conversation_text)
+        prompt = profile_extraction.build(conversation_text, nickname=user.nickname)
 
         try:
             response = self.client.chat.completions.create(
@@ -68,12 +90,6 @@ class ProfileService:
 
             result = json.loads(content)
             print(f"[Profile] 提取结果: {result}")
-
-            # 更新用户信息
-            user = db.query(User).filter(User.id == user_id).first()
-            if not user:
-                print(f"[Profile] 用户不存在: {user_id}")
-                return False
 
             updated = False
 
@@ -105,6 +121,9 @@ class ProfileService:
                 user.birth_year and
                 user.era_memories_status in ('none', 'pending', 'failed')
             )
+
+            # 自动生成称呼（如果为空或等于全名）
+            auto_set_preferred_name(user)
 
             # 如果收集到了足够信息，标记为完成（需要有称呼）
             if result.get("has_enough_info") or user.preferred_name:

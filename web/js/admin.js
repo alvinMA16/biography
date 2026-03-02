@@ -65,6 +65,7 @@ function logout() {
 // ========== Tab 切换 ==========
 
 let eraMemoriesLoaded = false;
+let welcomeMessagesLoaded = false;
 let monitoringLoaded = false;
 let monitoringData = null;
 
@@ -85,6 +86,9 @@ function switchTab(tab) {
     } else if (tab === 'era-memories') {
         document.getElementById('tabEraMemories').classList.add('active');
         if (!eraMemoriesLoaded) loadEraMemories();
+    } else if (tab === 'welcome-messages') {
+        document.getElementById('tabWelcomeMessages').classList.add('active');
+        if (!welcomeMessagesLoaded) loadWelcomeMessages();
     } else if (tab === 'monitoring') {
         document.getElementById('tabMonitoring').classList.add('active');
         if (!monitoringLoaded) loadMonitoringData();
@@ -139,6 +143,9 @@ const ACTION_LABELS = {
     create_era_memory: '创建时代记忆',
     update_era_memory: '更新时代记忆',
     delete_era_memory: '删除时代记忆',
+    create_welcome_message: '新增激励语',
+    update_welcome_message: '编辑激励语',
+    delete_welcome_message: '删除激励语',
 };
 
 async function loadLogs() {
@@ -181,6 +188,7 @@ function showCreateModal() {
     document.getElementById('createPhone').value = '';
     document.getElementById('createPassword').value = '';
     document.getElementById('createNickname').value = '';
+    document.getElementById('createGender').value = '';
     document.getElementById('createBirthYear').value = '';
     document.getElementById('createHometown').value = '';
     document.getElementById('createMainCity').value = '';
@@ -195,12 +203,13 @@ async function createUser() {
     const phone = document.getElementById('createPhone').value.trim();
     const password = document.getElementById('createPassword').value.trim();
     const nickname = document.getElementById('createNickname').value.trim();
-    if (!phone || !password || !nickname) {
-        alert('请填写手机号、密码和姓名');
+    const gender = document.getElementById('createGender').value;
+    if (!phone || !password || !nickname || !gender) {
+        alert('请填写手机号、密码、姓名和性别');
         return;
     }
 
-    const payload = { phone, password, nickname };
+    const payload = { phone, password, nickname, gender };
 
     const birthYear = document.getElementById('createBirthYear').value.trim();
     const hometown = document.getElementById('createHometown').value.trim();
@@ -270,6 +279,7 @@ function showEditModal(userId) {
 
     document.getElementById('editUserId').value = userId;
     document.getElementById('editNickname').value = user.nickname || '';
+    document.getElementById('editGender').value = user.gender || '';
     document.getElementById('editBirthYear').value = user.birth_year || '';
     document.getElementById('editHometown').value = user.hometown || '';
     document.getElementById('editMainCity').value = user.main_city || '';
@@ -285,6 +295,7 @@ async function saveEdit() {
     const userId = document.getElementById('editUserId').value;
     const payload = {
         nickname: document.getElementById('editNickname').value.trim() || null,
+        gender: document.getElementById('editGender').value || null,
         birth_year: document.getElementById('editBirthYear').value.trim()
             ? parseInt(document.getElementById('editBirthYear').value.trim(), 10)
             : null,
@@ -475,6 +486,137 @@ async function deleteEraMemory(id) {
         });
         eraMemoriesLoaded = false;
         await loadEraMemories();
+        logsLoaded = false;
+    } catch (e) {
+        alert('删除失败：' + e.message);
+    }
+}
+
+// ========== 激励语管理 ==========
+
+let welcomeMessagesData = [];
+
+async function loadWelcomeMessages() {
+    try {
+        const messages = await adminRequest('/admin/welcome-messages');
+        welcomeMessagesData = messages;
+        welcomeMessagesLoaded = true;
+        renderWelcomeMessageTable(messages);
+    } catch (e) {
+        document.getElementById('welcomeMessageTableBody').innerHTML =
+            '<tr><td colspan="4" class="admin-table-empty">加载失败</td></tr>';
+    }
+}
+
+function renderWelcomeMessageTable(messages) {
+    const tbody = document.getElementById('welcomeMessageTableBody');
+    if (!messages.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="admin-table-empty">暂无激励语</td></tr>';
+        return;
+    }
+    tbody.innerHTML = messages.map(m => `
+        <tr${!m.is_active ? ' class="admin-row-disabled"' : ''}>
+            <td>${escapeHtml(m.content)}</td>
+            <td>${m.sort_order}</td>
+            <td><span class="admin-badge ${m.is_active ? 'badge-yes' : 'badge-no'}">${m.is_active ? '启用' : '禁用'}</span></td>
+            <td class="admin-actions-cell">
+                <button class="admin-btn admin-btn-sm" onclick="editWelcomeMessage('${m.id}')">编辑</button>
+                <button class="admin-btn admin-btn-sm ${m.is_active ? 'admin-btn-warn' : ''}" onclick="toggleWelcomeMessage('${m.id}')">${m.is_active ? '禁用' : '启用'}</button>
+                <button class="admin-btn admin-btn-sm admin-btn-danger" onclick="deleteWelcomeMessage('${m.id}')">删除</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function showWelcomeMessageModal() {
+    document.getElementById('welcomeMessageModalTitle').textContent = '新增激励语';
+    document.getElementById('welcomeMessageId').value = '';
+    document.getElementById('welcomeMessageContent').value = '';
+    document.getElementById('welcomeMessageSortOrder').value = '0';
+    document.getElementById('welcomeMessageModal').style.display = 'flex';
+    document.getElementById('welcomeMessageContent').focus();
+}
+
+function editWelcomeMessage(id) {
+    const msg = welcomeMessagesData.find(m => m.id === id);
+    if (!msg) return;
+
+    document.getElementById('welcomeMessageModalTitle').textContent = '编辑激励语';
+    document.getElementById('welcomeMessageId').value = id;
+    document.getElementById('welcomeMessageContent').value = msg.content;
+    document.getElementById('welcomeMessageSortOrder').value = msg.sort_order;
+    document.getElementById('welcomeMessageModal').style.display = 'flex';
+    document.getElementById('welcomeMessageContent').focus();
+}
+
+function closeWelcomeMessageModal() {
+    document.getElementById('welcomeMessageModal').style.display = 'none';
+}
+
+async function saveWelcomeMessage() {
+    const id = document.getElementById('welcomeMessageId').value;
+    const content = document.getElementById('welcomeMessageContent').value.trim();
+    const sortOrder = parseInt(document.getElementById('welcomeMessageSortOrder').value, 10) || 0;
+
+    if (!content) {
+        alert('请输入激励语内容');
+        return;
+    }
+
+    const payload = { content, sort_order: sortOrder };
+
+    try {
+        if (id) {
+            await adminRequest(`/admin/welcome-messages/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify(payload),
+            });
+        } else {
+            await adminRequest('/admin/welcome-messages', {
+                method: 'POST',
+                body: JSON.stringify(payload),
+            });
+        }
+        closeWelcomeMessageModal();
+        welcomeMessagesLoaded = false;
+        await loadWelcomeMessages();
+        logsLoaded = false;
+    } catch (e) {
+        alert('保存失败：' + e.message);
+    }
+}
+
+async function toggleWelcomeMessage(id) {
+    const msg = welcomeMessagesData.find(m => m.id === id);
+    if (!msg) return;
+
+    const newActive = !msg.is_active;
+    try {
+        await adminRequest(`/admin/welcome-messages/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ is_active: newActive }),
+        });
+        welcomeMessagesLoaded = false;
+        await loadWelcomeMessages();
+        logsLoaded = false;
+    } catch (e) {
+        alert('操作失败：' + e.message);
+    }
+}
+
+async function deleteWelcomeMessage(id) {
+    const msg = welcomeMessagesData.find(m => m.id === id);
+    if (!msg) return;
+
+    const preview = msg.content.length > 30 ? msg.content.substring(0, 30) + '...' : msg.content;
+    if (!confirm(`确定删除这条激励语？\n\n"${preview}"`)) return;
+
+    try {
+        await adminRequest(`/admin/welcome-messages/${id}`, {
+            method: 'DELETE',
+        });
+        welcomeMessagesLoaded = false;
+        await loadWelcomeMessages();
         logsLoaded = false;
     } catch (e) {
         alert('删除失败：' + e.message);
@@ -762,6 +904,7 @@ function renderUserDetail(detail) {
 
     // 基础信息
     document.getElementById('detailNickname').textContent = detail.nickname || '-';
+    document.getElementById('detailGender').textContent = detail.gender || '-';
     document.getElementById('detailPreferredName').textContent = detail.preferred_name || '-';
     document.getElementById('detailBirthYear').textContent = detail.birth_year ? `${detail.birth_year}年` : '-';
     document.getElementById('detailHometown').textContent = detail.hometown || '-';
