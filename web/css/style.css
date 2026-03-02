@@ -1114,6 +1114,15 @@ body {
     color: var(--color-text);
 }
 
+.topic-option-free {
+    border-style: dashed;
+    color: var(--color-text-light);
+}
+
+.topic-option-free .topic-title {
+    color: var(--color-text-light);
+}
+
 .topic-loading {
     text-align: center;
     padding: 40px 20px;

@@ -125,7 +125,11 @@ async function loadTopicOptions() {
             <div class="topic-option" onclick="selectTopicByIndex(${index})">
                 <div class="topic-title">${escapeHtml(opt.topic)}</div>
             </div>
-        `).join('');
+        `).join('') + `
+            <div class="topic-option topic-option-free" onclick="selectFreeTopic()">
+                <div class="topic-title">我有其他想说的</div>
+            </div>
+        `;
 
     } catch (error) {
         console.error('加载话题失败:', error);
@@ -146,6 +150,10 @@ async function selectTopicByIndex(index) {
 
     const opt = options[index];
     await selectTopic(opt.id, opt.topic, opt.greeting, opt.context, opt.age_start, opt.age_end);
+}
+
+async function selectFreeTopic() {
+    await selectTopic(null, '__free__', '好的，今天您来定，想聊点什么？', '', null, null);
 }
 
 async function selectTopic(topicId, topic, greeting, context, ageStart, ageEnd) {

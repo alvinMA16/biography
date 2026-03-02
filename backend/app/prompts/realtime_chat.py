@@ -52,13 +52,31 @@ TOPIC_SECTION_TEMPLATE = """
 以下是与用户相关的背景信息（包含用户资料和相关的时代背景），可以自然地在对话中提及：
 {chat_context}"""
 
+# 自由聊天模式（用户自选话题）
+FREE_TOPIC_SECTION = """
+
+## 本次对话模式
+
+用户选择了自由讲述，没有预设主题。你的任务是：
+- 耐心听用户想讲什么，不要急着引导方向
+- 等用户说出想聊的内容后，围绕那个话题深入追问细节和感受
+- 如果用户不确定讲什么，可以温和地问问想聊生活中哪方面的事
+- 不要一次建议多个话题让用户选，避免造成压力
+
+以下是用户的背景信息，帮助你更好地理解用户：
+{chat_context}"""
+
 
 def build(user_nickname: str = None, topic: str = None, chat_context: str = None) -> str:
     """构建正常对话模式的 system_role"""
     user_info = f"用户叫{user_nickname}。" if user_nickname else ""
 
     topic_section = ""
-    if topic or chat_context:
+    if topic == "__free__":
+        topic_section = FREE_TOPIC_SECTION.format(
+            chat_context=chat_context or "无"
+        )
+    elif topic or chat_context:
         topic_section = TOPIC_SECTION_TEMPLATE.format(
             topic=topic or "自由聊天",
             chat_context=chat_context or "无",

@@ -89,6 +89,18 @@ async def realtime_dialog(websocket: WebSocket):
     custom_context = query_params.get("context", [None])[0]  # 预生成的对话上下文
     print(f"[Realtime] 收到连接请求, speaker={speaker}, recorder_name={recorder_name}, conversation_id={conversation_id}, user_id={user_id}, mode={mode}, topic={'有' if custom_topic else '无'}, greeting={'有' if custom_greeting else '无'}, context={'有' if custom_context else '无'}")
 
+    # 自由聊天模式：动态构建背景信息
+    if custom_topic == "__free__" and user_id:
+        from app.services.topic_service import topic_service
+        db = SessionLocal()
+        try:
+            user = db.query(User).filter(User.id == user_id).first()
+            if user:
+                custom_context = topic_service.build_free_topic_context(db, user)
+                print(f"[Realtime] 自由聊天模式，已构建背景信息 ({len(custom_context)} 字)")
+        finally:
+            db.close()
+
     client = None
     receive_task = None
 

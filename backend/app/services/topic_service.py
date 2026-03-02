@@ -372,4 +372,29 @@ class TopicService:
         return saved_options
 
 
+    def build_free_topic_context(self, db: Session, user: User) -> str:
+        """为自由聊天模式构建背景信息（用户资料 + 时代记忆 + 已有回忆录摘要）"""
+        parts = []
+
+        # 用户资料
+        profile = self._build_user_profile(user)
+        parts.append(f"## 用户资料\n{profile}")
+
+        # 时代记忆
+        era_memories = ""
+        if user.birth_year:
+            era_memories = era_memory_service.get_for_user(db, user.birth_year)
+        if not era_memories:
+            era_memories = user.era_memories or ""
+        if era_memories:
+            parts.append(f"## 时代背景\n{era_memories}")
+
+        # 已有回忆录摘要
+        memoirs_summary = self._get_all_memoirs_summary(db, user.id)
+        if memoirs_summary:
+            parts.append(f"## 已记录的回忆（避免重复聊这些话题）\n{memoirs_summary}")
+
+        return "\n\n".join(parts)
+
+
 topic_service = TopicService()
