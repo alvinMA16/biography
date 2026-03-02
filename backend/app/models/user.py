@@ -75,3 +75,19 @@ class WelcomeMessage(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class PresetTopic(Base):
+    """预设初始话题（全局共享，新用户第一次对话时使用）"""
+    __tablename__ = "preset_topics"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    topic = Column(String(200), nullable=False)  # 话题名称
+    greeting = Column(Text, nullable=False)  # 开场白
+    chat_context = Column(Text, nullable=True)  # 对话上下文（追问路径等）
+    age_start = Column(Integer, nullable=True)  # 话题对应的人生阶段起始年龄
+    age_end = Column(Integer, nullable=True)  # 话题对应的人生阶段结束年龄
+    is_active = Column(Boolean, default=True)  # 是否启用
+    sort_order = Column(Integer, default=0)  # 排序权重
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+

@@ -66,6 +66,7 @@ function logout() {
 
 let eraMemoriesLoaded = false;
 let welcomeMessagesLoaded = false;
+let presetTopicsLoaded = false;
 let monitoringLoaded = false;
 let monitoringData = null;
 
@@ -89,6 +90,9 @@ function switchTab(tab) {
     } else if (tab === 'welcome-messages') {
         document.getElementById('tabWelcomeMessages').classList.add('active');
         if (!welcomeMessagesLoaded) loadWelcomeMessages();
+    } else if (tab === 'preset-topics') {
+        document.getElementById('tabPresetTopics').classList.add('active');
+        if (!presetTopicsLoaded) loadPresetTopics();
     } else if (tab === 'monitoring') {
         document.getElementById('tabMonitoring').classList.add('active');
         if (!monitoringLoaded) loadMonitoringData();
@@ -1227,6 +1231,160 @@ function switchMemoirTab(tab) {
         document.getElementById('memoirTabContent').classList.add('active');
     } else {
         document.getElementById('transcriptTabContent').classList.add('active');
+    }
+}
+
+// ========== 预设话题管理 ==========
+
+let presetTopicsData = [];
+
+async function loadPresetTopics() {
+    try {
+        const topics = await adminRequest('/admin/preset-topics');
+        presetTopicsData = topics;
+        presetTopicsLoaded = true;
+        renderPresetTopicTable(topics);
+    } catch (e) {
+        document.getElementById('presetTopicTableBody').innerHTML =
+            '<tr><td colspan="5" class="admin-table-empty">加载失败</td></tr>';
+    }
+}
+
+function renderPresetTopicTable(topics) {
+    const tbody = document.getElementById('presetTopicTableBody');
+    if (!topics.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="admin-table-empty">暂无预设话题</td></tr>';
+        return;
+    }
+    tbody.innerHTML = topics.map(t => `
+        <tr${!t.is_active ? ' class="admin-row-disabled"' : ''}>
+            <td>${escapeHtml(t.topic)}</td>
+            <td title="${escapeHtml(t.greeting)}">${escapeHtml(t.greeting.length > 40 ? t.greeting.substring(0, 40) + '...' : t.greeting)}</td>
+            <td>${t.sort_order}</td>
+            <td><span class="admin-badge ${t.is_active ? 'badge-yes' : 'badge-no'}">${t.is_active ? '启用' : '禁用'}</span></td>
+            <td class="admin-actions-cell">
+                <button class="admin-btn admin-btn-sm" onclick="editPresetTopic('${t.id}')">编辑</button>
+                <button class="admin-btn admin-btn-sm ${t.is_active ? 'admin-btn-warn' : ''}" onclick="togglePresetTopic('${t.id}')">${t.is_active ? '禁用' : '启用'}</button>
+                <button class="admin-btn admin-btn-sm admin-btn-danger" onclick="deletePresetTopic('${t.id}')">删除</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function showPresetTopicModal() {
+    document.getElementById('presetTopicModalTitle').textContent = '新增初始话题';
+    document.getElementById('presetTopicId').value = '';
+    document.getElementById('presetTopicName').value = '';
+    document.getElementById('presetTopicGreeting').value = '';
+    document.getElementById('presetTopicChatContext').value = '';
+    document.getElementById('presetTopicAgeStart').value = '';
+    document.getElementById('presetTopicAgeEnd').value = '';
+    document.getElementById('presetTopicSortOrder').value = '0';
+    document.getElementById('presetTopicModal').style.display = 'flex';
+    document.getElementById('presetTopicName').focus();
+}
+
+function editPresetTopic(id) {
+    const t = presetTopicsData.find(t => t.id === id);
+    if (!t) return;
+
+    document.getElementById('presetTopicModalTitle').textContent = '编辑初始话题';
+    document.getElementById('presetTopicId').value = id;
+    document.getElementById('presetTopicName').value = t.topic;
+    document.getElementById('presetTopicGreeting').value = t.greeting;
+    document.getElementById('presetTopicChatContext').value = t.chat_context || '';
+    document.getElementById('presetTopicAgeStart').value = t.age_start != null ? t.age_start : '';
+    document.getElementById('presetTopicAgeEnd').value = t.age_end != null ? t.age_end : '';
+    document.getElementById('presetTopicSortOrder').value = t.sort_order;
+    document.getElementById('presetTopicModal').style.display = 'flex';
+    document.getElementById('presetTopicName').focus();
+}
+
+function closePresetTopicModal() {
+    document.getElementById('presetTopicModal').style.display = 'none';
+}
+
+async function savePresetTopic() {
+    const id = document.getElementById('presetTopicId').value;
+    const topic = document.getElementById('presetTopicName').value.trim();
+    const greeting = document.getElementById('presetTopicGreeting').value.trim();
+    const chatContext = document.getElementById('presetTopicChatContext').value.trim();
+    const ageStartVal = document.getElementById('presetTopicAgeStart').value;
+    const ageEndVal = document.getElementById('presetTopicAgeEnd').value;
+    const sortOrder = parseInt(document.getElementById('presetTopicSortOrder').value, 10) || 0;
+
+    if (!topic) {
+        alert('请输入话题名称');
+        return;
+    }
+    if (!greeting) {
+        alert('请输入开场白');
+        return;
+    }
+
+    const payload = {
+        topic,
+        greeting,
+        chat_context: chatContext || null,
+        age_start: ageStartVal !== '' ? parseInt(ageStartVal, 10) : null,
+        age_end: ageEndVal !== '' ? parseInt(ageEndVal, 10) : null,
+        sort_order: sortOrder,
+    };
+
+    try {
+        if (id) {
+            await adminRequest(`/admin/preset-topics/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify(payload),
+            });
+        } else {
+            await adminRequest('/admin/preset-topics', {
+                method: 'POST',
+                body: JSON.stringify(payload),
+            });
+        }
+        closePresetTopicModal();
+        presetTopicsLoaded = false;
+        await loadPresetTopics();
+        logsLoaded = false;
+    } catch (e) {
+        alert('保存失败：' + e.message);
+    }
+}
+
+async function togglePresetTopic(id) {
+    const t = presetTopicsData.find(t => t.id === id);
+    if (!t) return;
+
+    const newActive = !t.is_active;
+    try {
+        await adminRequest(`/admin/preset-topics/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ is_active: newActive }),
+        });
+        presetTopicsLoaded = false;
+        await loadPresetTopics();
+        logsLoaded = false;
+    } catch (e) {
+        alert('操作失败：' + e.message);
+    }
+}
+
+async function deletePresetTopic(id) {
+    const t = presetTopicsData.find(t => t.id === id);
+    if (!t) return;
+
+    if (!confirm(`确定删除预设话题「${t.topic}」？`)) return;
+
+    try {
+        await adminRequest(`/admin/preset-topics/${id}`, {
+            method: 'DELETE',
+        });
+        presetTopicsLoaded = false;
+        await loadPresetTopics();
+        logsLoaded = false;
+    } catch (e) {
+        alert('删除失败：' + e.message);
     }
 }
 

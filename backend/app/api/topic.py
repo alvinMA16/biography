@@ -54,8 +54,8 @@ def get_topic(
     if not topic:
         raise HTTPException(status_code=404, detail="话题不存在")
 
-    # ownership 校验
-    if topic.user_id != current_user.id:
+    # PresetTopic 没有 user_id，所有用户都可访问；TopicCandidate 需要 ownership 校验
+    if hasattr(topic, 'user_id') and topic.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="无权访问该话题")
 
     return {

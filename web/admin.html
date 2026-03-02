@@ -45,6 +45,10 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/></svg>
                         激励语
                     </button>
+                    <button class="admin-nav-item" data-tab="preset-topics" onclick="switchTab('preset-topics')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="20" cy="18" r="2"/></svg>
+                        初始话题
+                    </button>
                     <button class="admin-nav-item" data-tab="monitoring" onclick="switchTab('monitoring')">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
                         数据监控
@@ -157,6 +161,32 @@
                                 </thead>
                                 <tbody id="welcomeMessageTableBody">
                                     <tr><td colspan="4" class="admin-table-empty">加载中...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 初始话题 Tab -->
+                <div id="tabPresetTopics" class="admin-tab-panel">
+                    <header class="admin-panel-header">
+                        <h1>初始话题管理</h1>
+                        <button class="btn btn-primary" onclick="showPresetTopicModal()">新增话题</button>
+                    </header>
+                    <div class="admin-panel-content">
+                        <div class="admin-card">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>话题名称</th>
+                                        <th>开场白</th>
+                                        <th style="width:80px;">排序</th>
+                                        <th style="width:80px;">状态</th>
+                                        <th style="width:150px;">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="presetTopicTableBody">
+                                    <tr><td colspan="5" class="admin-table-empty">加载中...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -830,6 +860,49 @@
                 <div class="admin-modal-footer">
                     <button class="admin-modal-btn admin-modal-btn-cancel" onclick="closeWelcomeMessageModal()">取消</button>
                     <button class="admin-modal-btn admin-modal-btn-confirm" onclick="saveWelcomeMessage()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 预设话题编辑弹窗 -->
+    <div class="modal" id="presetTopicModal" style="display:none;" onclick="if(event.target===this)closePresetTopicModal()">
+        <div class="modal-content admin-modal-form">
+            <div class="modal-header">
+                <h2 id="presetTopicModalTitle">新增初始话题</h2>
+                <button class="btn-close" onclick="closePresetTopicModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="presetTopicId">
+                <div class="admin-form-grid">
+                    <div class="admin-form-group admin-form-full">
+                        <label>话题名称 <span class="required">*</span></label>
+                        <input type="text" id="presetTopicName" class="admin-input" placeholder="如：成长与家庭">
+                    </div>
+                    <div class="admin-form-group admin-form-full">
+                        <label>开场白 <span class="required">*</span></label>
+                        <textarea id="presetTopicGreeting" class="admin-input" rows="3" placeholder="用户选择此话题后的开场白"></textarea>
+                    </div>
+                    <div class="admin-form-group admin-form-full">
+                        <label>对话上下文</label>
+                        <textarea id="presetTopicChatContext" class="admin-input" rows="4" placeholder="追问路径、核心想知道等（可选）"></textarea>
+                    </div>
+                    <div class="admin-form-group">
+                        <label>起始年龄</label>
+                        <input type="number" id="presetTopicAgeStart" class="admin-input" placeholder="如 0" min="0" max="100">
+                    </div>
+                    <div class="admin-form-group">
+                        <label>结束年龄</label>
+                        <input type="number" id="presetTopicAgeEnd" class="admin-input" placeholder="如 18" min="0" max="100">
+                    </div>
+                    <div class="admin-form-group">
+                        <label>排序权重</label>
+                        <input type="number" id="presetTopicSortOrder" class="admin-input" placeholder="0" min="0" value="0">
+                    </div>
+                </div>
+                <div class="admin-modal-footer">
+                    <button class="admin-modal-btn admin-modal-btn-cancel" onclick="closePresetTopicModal()">取消</button>
+                    <button class="admin-modal-btn admin-modal-btn-confirm" onclick="savePresetTopic()">保存</button>
                 </div>
             </div>
         </div>

@@ -10,7 +10,6 @@ from openai import OpenAI
 
 from app.config import settings
 from app.models import User, Conversation, Message
-from app.services.topic_service import topic_service
 
 
 def auto_set_preferred_name(user):
@@ -130,9 +129,6 @@ class ProfileService:
                 user.profile_completed = True
                 db.commit()
                 print(f"[Profile] 用户信息收集完成")
-
-                # 生成初始话题选项
-                topic_service.generate_topic_options(db, user)
 
                 # 异步生成时代记忆
                 if should_generate_era:

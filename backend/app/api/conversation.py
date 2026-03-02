@@ -164,7 +164,20 @@ def process_conversation_end(conversation_id: str, user_id: str):
             else:
                 print(f"[Conversation] 该对话已有回忆录，跳过自动生成")
 
-            topic_service.review_topic_pool_async(user_id)
+            # 根据已完成回忆录数量决定话题池操作
+            completed_memoir_count = db.query(Memoir).filter(
+                Memoir.user_id == user_id,
+                Memoir.status == "completed"
+            ).count()
+
+            if completed_memoir_count == 1:
+                # 刚完成第一篇回忆录，首次生成个性化话题
+                print(f"[Conversation] 用户完成第一篇回忆录，生成个性化话题")
+                topic_service.generate_topic_options(db, user)
+            elif completed_memoir_count > 1:
+                # 已有多篇回忆录，审查话题池
+                topic_service.review_topic_pool_async(user_id)
+            # completed_memoir_count == 0: 回忆录生成失败，不处理话题
 
         print(f"[Conversation] 对话结束任务完成: {conversation_id}")
     except Exception as e:

@@ -12,6 +12,7 @@ from openai import OpenAI
 
 from app.config import settings
 from app.models import User, TopicCandidate, Memoir
+from app.models.user import PresetTopic
 from app.services.era_memory_service import era_memory_service
 
 
@@ -24,13 +25,24 @@ class TopicService:
         self.model = settings.dashscope_model
 
     def get_topic_options(self, db: Session, user_id: str) -> List[Dict]:
-        """获取用户的话题选项（随机选取几个展示）"""
+        """获取用户的话题选项
+        - 已完成回忆录 = 0 → 返回预设话题
+        - 已完成回忆录 >= 1 → 返回个人话题池（如果为空则 fallback 到预设话题）
+        """
+        completed_count = self._get_completed_memoir_count(db, user_id)
+
+        if completed_count == 0:
+            # 新用户：使用预设话题
+            return self.get_preset_topics(db)
+
+        # 有回忆录的用户：使用个人话题池
         candidates = db.query(TopicCandidate).filter(
             TopicCandidate.user_id == user_id
         ).all()
 
         if not candidates:
-            return []
+            # 个人话题池为空，fallback 到预设话题
+            return self.get_preset_topics(db)
 
         # 随机选取展示（如果话题池较大）
         import random
@@ -49,9 +61,38 @@ class TopicService:
             for c in selected
         ]
 
+    def get_preset_topics(self, db: Session) -> List[Dict]:
+        """获取全局预设话题（is_active=True，按 sort_order 排序）"""
+        topics = db.query(PresetTopic).filter(
+            PresetTopic.is_active == True
+        ).order_by(PresetTopic.sort_order.asc()).all()
+
+        return [
+            {
+                "id": t.id,
+                "topic": t.topic,
+                "greeting": t.greeting,
+                "context": t.chat_context or "",
+                "age_start": t.age_start,
+                "age_end": t.age_end
+            }
+            for t in topics
+        ]
+
+    def _get_completed_memoir_count(self, db: Session, user_id: str) -> int:
+        """获取用户已完成的回忆录数量"""
+        return db.query(Memoir).filter(
+            Memoir.user_id == user_id,
+            Memoir.status == "completed"
+        ).count()
+
     def get_topic_by_id(self, db: Session, topic_id: str) -> Optional[TopicCandidate]:
-        """根据ID获取话题"""
-        return db.query(TopicCandidate).filter(TopicCandidate.id == topic_id).first()
+        """根据ID获取话题（先查 TopicCandidate，再查 PresetTopic）"""
+        topic = db.query(TopicCandidate).filter(TopicCandidate.id == topic_id).first()
+        if topic:
+            return topic
+        # fallback 到预设话题
+        return db.query(PresetTopic).filter(PresetTopic.id == topic_id).first()
 
     def generate_topic_options(self, db: Session, user: User) -> List[Dict]:
         """为用户首次生成话题选项"""

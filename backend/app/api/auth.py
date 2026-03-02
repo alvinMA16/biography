@@ -5,13 +5,13 @@ import string
 from datetime import datetime
 from typing import Optional, List
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.database import get_db, SessionLocal
-from app.models import User, TopicCandidate, WelcomeMessage
+from app.database import get_db
+from app.models import User, TopicCandidate, WelcomeMessage, PresetTopic
 from app.models.conversation import Conversation, Message
 from app.models.memoir import Memoir
 from app.models.audit_log import AuditLog
@@ -26,29 +26,6 @@ def _log_action(db: Session, action: str, target_user_id: str = None, target_lab
     log = AuditLog(action=action, target_user_id=target_user_id, target_label=target_label, detail=detail)
     db.add(log)
     db.commit()
-
-def _run_post_profile_tasks(user_id: str):
-    """后台任务：为 profile 已完成的用户生成开场白和话题"""
-    db = SessionLocal()
-    try:
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
-            logger.warning("[Admin] 后台任务：用户 %s 不存在，跳过", user_id)
-            return
-
-        from app.services.topic_service import topic_service
-
-        logger.info("[Admin] 为用户 %s 生成初始话题...", user_id)
-        topic_service.generate_topic_options(db, user)
-
-        logger.info("[Admin] 用户 %s 的开场白和话题生成完成", user_id)
-    except Exception as e:
-        logger.error("[Admin] 为用户 %s 生成开场白/话题失败: %s", user_id, e)
-        import traceback
-        traceback.print_exc()
-    finally:
-        db.close()
-
 
 router = APIRouter()
 
@@ -113,7 +90,6 @@ admin_router = APIRouter()
 @admin_router.post("/user", response_model=AdminCreateUserResponse)
 def admin_create_user(
     req: AdminCreateUserRequest,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     _: None = Depends(verify_admin_key),
 ):
@@ -143,10 +119,6 @@ def admin_create_user(
 
     _log_action(db, "create_user", user.id, user.phone,
                 f"创建用户 {user.phone}" + (f"（{user.nickname}）" if user.nickname else ""))
-
-    # 如果 profile 已完成，后台生成开场白和话题
-    if user.profile_completed:
-        background_tasks.add_task(_run_post_profile_tasks, user.id)
 
     return AdminCreateUserResponse(user_id=user.id, phone=user.phone)
 
@@ -221,7 +193,6 @@ class AdminUpdateUserRequest(BaseModel):
 def admin_update_user(
     user_id: str,
     req: AdminUpdateUserRequest,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     _: None = Depends(verify_admin_key),
 ):
@@ -229,8 +200,6 @@ def admin_update_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
-
-    was_profile_completed = user.profile_completed or False
 
     if req.nickname is not None:
         user.nickname = req.nickname
@@ -253,10 +222,6 @@ def admin_update_user(
 
     _log_action(db, "edit_user", user.id, user.phone or user.nickname,
                 f"编辑用户信息：{user.phone or user.nickname}")
-
-    # 如果 profile 从未完成变为完成，后台生成开场白和话题
-    if not was_profile_completed and user.profile_completed:
-        background_tasks.add_task(_run_post_profile_tasks, user.id)
 
     return {
         "id": user.id,
@@ -1229,4 +1194,162 @@ def admin_delete_welcome_message(
     db.commit()
     _log_action(db, "delete_welcome_message", None, None,
                 f"删除激励语：{content_preview}")
+    return {"success": True}
+
+
+# ========== 管理员：预设话题管理 ==========
+
+class PresetTopicItem(BaseModel):
+    id: str
+    topic: str
+    greeting: str
+    chat_context: Optional[str] = None
+    age_start: Optional[int] = None
+    age_end: Optional[int] = None
+    is_active: bool = True
+    sort_order: int = 0
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class PresetTopicCreateRequest(BaseModel):
+    topic: str
+    greeting: str
+    chat_context: Optional[str] = None
+    age_start: Optional[int] = None
+    age_end: Optional[int] = None
+    is_active: bool = True
+    sort_order: int = 0
+
+
+class PresetTopicUpdateRequest(BaseModel):
+    topic: Optional[str] = None
+    greeting: Optional[str] = None
+    chat_context: Optional[str] = None
+    age_start: Optional[int] = None
+    age_end: Optional[int] = None
+    is_active: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+
+@admin_router.get("/preset-topics", response_model=List[PresetTopicItem])
+def admin_list_preset_topics(
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin_key),
+):
+    """管理员获取所有预设话题（含禁用的）"""
+    topics = db.query(PresetTopic).order_by(PresetTopic.sort_order.asc(), PresetTopic.created_at.asc()).all()
+    return [
+        PresetTopicItem(
+            id=t.id,
+            topic=t.topic,
+            greeting=t.greeting,
+            chat_context=t.chat_context,
+            age_start=t.age_start,
+            age_end=t.age_end,
+            is_active=t.is_active,
+            sort_order=t.sort_order,
+            created_at=t.created_at,
+            updated_at=t.updated_at,
+        )
+        for t in topics
+    ]
+
+
+@admin_router.post("/preset-topics", response_model=PresetTopicItem)
+def admin_create_preset_topic(
+    req: PresetTopicCreateRequest,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin_key),
+):
+    """管理员新增预设话题"""
+    topic = PresetTopic(
+        topic=req.topic,
+        greeting=req.greeting,
+        chat_context=req.chat_context,
+        age_start=req.age_start,
+        age_end=req.age_end,
+        is_active=req.is_active,
+        sort_order=req.sort_order,
+    )
+    db.add(topic)
+    db.commit()
+    db.refresh(topic)
+    _log_action(db, "create_preset_topic", None, None,
+                f"新增预设话题：{topic.topic}")
+    return PresetTopicItem(
+        id=topic.id,
+        topic=topic.topic,
+        greeting=topic.greeting,
+        chat_context=topic.chat_context,
+        age_start=topic.age_start,
+        age_end=topic.age_end,
+        is_active=topic.is_active,
+        sort_order=topic.sort_order,
+        created_at=topic.created_at,
+        updated_at=topic.updated_at,
+    )
+
+
+@admin_router.put("/preset-topics/{topic_id}", response_model=PresetTopicItem)
+def admin_update_preset_topic(
+    topic_id: str,
+    req: PresetTopicUpdateRequest,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin_key),
+):
+    """管理员编辑预设话题"""
+    topic = db.query(PresetTopic).filter(PresetTopic.id == topic_id).first()
+    if not topic:
+        raise HTTPException(status_code=404, detail="预设话题不存在")
+
+    if req.topic is not None:
+        topic.topic = req.topic
+    if req.greeting is not None:
+        topic.greeting = req.greeting
+    if req.chat_context is not None:
+        topic.chat_context = req.chat_context
+    if req.age_start is not None:
+        topic.age_start = req.age_start
+    if req.age_end is not None:
+        topic.age_end = req.age_end
+    if req.is_active is not None:
+        topic.is_active = req.is_active
+    if req.sort_order is not None:
+        topic.sort_order = req.sort_order
+
+    db.commit()
+    db.refresh(topic)
+    _log_action(db, "update_preset_topic", None, None,
+                f"编辑预设话题：{topic.topic}")
+    return PresetTopicItem(
+        id=topic.id,
+        topic=topic.topic,
+        greeting=topic.greeting,
+        chat_context=topic.chat_context,
+        age_start=topic.age_start,
+        age_end=topic.age_end,
+        is_active=topic.is_active,
+        sort_order=topic.sort_order,
+        created_at=topic.created_at,
+        updated_at=topic.updated_at,
+    )
+
+
+@admin_router.delete("/preset-topics/{topic_id}")
+def admin_delete_preset_topic(
+    topic_id: str,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin_key),
+):
+    """管理员删除预设话题"""
+    topic = db.query(PresetTopic).filter(PresetTopic.id == topic_id).first()
+    if not topic:
+        raise HTTPException(status_code=404, detail="预设话题不存在")
+
+    topic_name = topic.topic
+    db.delete(topic)
+    db.commit()
+    _log_action(db, "delete_preset_topic", None, None,
+                f"删除预设话题：{topic_name}")
     return {"success": True}
