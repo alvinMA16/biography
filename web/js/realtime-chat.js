@@ -229,19 +229,9 @@ function handleServerMessage(message) {
                 // AI 回复文字 - 累积并显示
                 if (isAISpeaking && message.content) {
                     currentAIResponse += message.content;  // 累积文本
-                    // 检查是否包含结束标记
+                    // 过滤掉结束标记（兜底，防止偶尔显示）
                     const displayText = currentAIResponse.replace('【信息收集完成】', '').trim();
                     updateAIText(displayText);
-
-                    // 检测信息收集完成标记
-                    if (isProfileCollectionMode && !autoEndTriggered && currentAIResponse.includes('【信息收集完成】')) {
-                        autoEndTriggered = true;  // 防止重复触发
-                        console.log('检测到信息收集完成标记，准备自动结束对话');
-                        // 延迟一点时间让用户听完AI说的话
-                        setTimeout(() => {
-                            autoEndProfileCollection();
-                        }, 3000);
-                    }
                 }
             }
             break;
@@ -254,6 +244,15 @@ function handleServerMessage(message) {
             // Debug 模式下显示调试信息
             if (DEBUG_MODE && message.message) {
                 showToast(message.message);
+            }
+            break;
+
+        case 'profile_collection_complete':
+            // 后端 Qwen 验证信息收集完成，自动结束对话
+            if (isProfileCollectionMode && !autoEndTriggered) {
+                autoEndTriggered = true;
+                console.log('收到后端信息收集完成确认，自动结束对话');
+                autoEndProfileCollection();
             }
             break;
 

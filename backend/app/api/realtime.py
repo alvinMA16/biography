@@ -46,6 +46,48 @@ def authenticate_ws(query_params: dict) -> str:
     return decode_token(token)
 
 
+async def validate_profile_completion(conversation_id: str, websocket: WebSocket):
+    """异步验证信息收集是否真正完成，完成则通知前端"""
+    try:
+        db = SessionLocal()
+        try:
+            messages = db.query(Message).filter(
+                Message.conversation_id == conversation_id
+            ).order_by(Message.created_at).all()
+
+            # 构建对话文本
+            conversation_text = "\n".join(
+                f"{'记录师' if m.role == 'assistant' else '用户'}: {m.content}"
+                for m in messages
+            )
+        finally:
+            db.close()
+
+        # 调用 Qwen 验证
+        from app.services.llm_service import llm_service
+        complete = await asyncio.get_event_loop().run_in_executor(
+            None, llm_service.check_profile_completion, conversation_text
+        )
+
+        if complete:
+            print(f"[Realtime] Qwen 确认信息收集完成，通知前端")
+            await websocket.send_json({
+                "type": "profile_collection_complete"
+            })
+        else:
+            print(f"[Realtime] Qwen 判定信息收集未完成，继续对话")
+
+    except Exception as e:
+        print(f"[Realtime] 信息收集验证失败: {e}")
+        # 验证失败时也通知前端完成，避免卡住
+        try:
+            await websocket.send_json({
+                "type": "profile_collection_complete"
+            })
+        except:
+            pass
+
+
 @router.websocket("/dialog")
 async def realtime_dialog(websocket: WebSocket):
     """
@@ -164,7 +206,19 @@ async def realtime_dialog(websocket: WebSocket):
             elif event == 359:
                 # TTS 结束 - 保存 AI 回复
                 if current_response_text and conversation_id:
-                    save_message(conversation_id, "assistant", current_response_text)
+                    # 信息收集模式：检测完成标记
+                    has_completion_marker = '【信息收集完成】' in current_response_text
+                    # 保存时去掉标记
+                    clean_text = current_response_text.replace('【信息收集完成】', '').strip()
+                    save_message(conversation_id, "assistant", clean_text)
+
+                    # 如果是信息收集模式且检测到标记，启动 Qwen 二次验证
+                    if has_completion_marker and actual_mode == "profile_collection":
+                        print(f"[Realtime] 检测到信息收集完成标记，启动 Qwen 验证")
+                        asyncio.create_task(
+                            validate_profile_completion(conversation_id, websocket)
+                        )
+
                     current_response_text = ""
 
         except Exception as e:

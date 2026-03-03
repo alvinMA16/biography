@@ -136,6 +136,37 @@ class LLMService:
             print(f"[LLM] 推断时间段失败: {e}")
             return {"year_start": None, "year_end": None, "time_period": ""}
 
+    def check_profile_completion(self, conversation_text: str) -> bool:
+        """检查信息收集对话是否已收集全部 4 项信息（称呼、出生年份、家乡、主要城市）"""
+        import json
+        from app.prompts import profile_completion_check
+
+        prompt = profile_completion_check.build(conversation_text)
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model_fast,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+                max_tokens=50
+            )
+
+            content = response.choices[0].message.content.strip()
+
+            # 处理可能的 markdown 代码块
+            if content.startswith("```"):
+                content = content.split("```")[1]
+                if content.startswith("json"):
+                    content = content[4:]
+                content = content.strip()
+
+            result = json.loads(content)
+            return result.get("complete", False)
+        except Exception as e:
+            print(f"[LLM] 信息收集完成度检查失败: {e}")
+            # 出错时默认返回 True，避免阻塞用户
+            return True
+
     def generate_era_memories(self, birth_year: int, hometown: str = None, main_city: str = None) -> str:
         """根据用户出生年份和地点生成时代记忆"""
         from app.prompts import era_memories
