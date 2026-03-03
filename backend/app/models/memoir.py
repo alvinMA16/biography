@@ -10,8 +10,8 @@ class Memoir(Base):
     __tablename__ = "memoirs"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
-    conversation_id = Column(String(36), ForeignKey("conversations.id"), nullable=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    conversation_id = Column(String(36), ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True)
     title = Column(String(100), nullable=False)
     content = Column(Text, nullable=True)  # 生成中时可能为空
     status = Column(String(20), default="completed")  # generating, completed
@@ -23,6 +23,7 @@ class Memoir(Base):
     time_period = Column(String(50), nullable=True)  # 时期描述，如 "童年"、"大学时期"
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)
 
     # 关联对话，用于获取对话时间
     conversation = relationship("Conversation", foreign_keys=[conversation_id])

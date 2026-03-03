@@ -99,6 +99,10 @@ const api = {
         async getWelcomeMessages() {
             return api.request('/user/welcome-messages');
         },
+
+        async exportData() {
+            return api.request('/user/me/export');
+        },
     },
 
     // 对话相关

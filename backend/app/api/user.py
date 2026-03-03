@@ -1,10 +1,13 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 
 from app.database import get_db
-from app.models import User, Conversation, Message, Memoir, WelcomeMessage
+from app.models import User, Conversation, Message, Memoir, WelcomeMessage, AuditLog
 from app.auth import get_current_user, verify_password, hash_password
 
 router = APIRouter()
@@ -175,23 +178,110 @@ def get_welcome_messages(
     return [{"id": m.id, "content": m.content, "show_greeting": m.show_greeting} for m in messages]
 
 
+@router.get("/me/export")
+def export_user_data(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """导出用户的所有数据（个人信息、对话记录、回忆录）"""
+    user_id = current_user.id
+
+    # 用户基本信息
+    profile = {
+        "nickname": current_user.nickname,
+        "preferred_name": current_user.preferred_name,
+        "gender": current_user.gender,
+        "birth_year": current_user.birth_year,
+        "hometown": current_user.hometown,
+        "main_city": current_user.main_city,
+        "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
+    }
+
+    # 对话记录（含消息）
+    conversations = db.query(Conversation).filter(
+        Conversation.user_id == user_id,
+        Conversation.deleted_at == None,
+    ).order_by(Conversation.created_at).all()
+
+    conversations_data = []
+    for conv in conversations:
+        messages = db.query(Message).filter(
+            Message.conversation_id == conv.id
+        ).order_by(Message.created_at).all()
+
+        conversations_data.append({
+            "title": conv.title,
+            "topic": conv.topic,
+            "summary": conv.summary,
+            "status": conv.status,
+            "created_at": conv.created_at.isoformat() if conv.created_at else None,
+            "messages": [
+                {
+                    "role": msg.role,
+                    "content": msg.content,
+                    "created_at": msg.created_at.isoformat() if msg.created_at else None,
+                }
+                for msg in messages
+            ],
+        })
+
+    # 回忆录
+    memoirs = db.query(Memoir).filter(
+        Memoir.user_id == user_id,
+        Memoir.deleted_at == None,
+    ).order_by(Memoir.order_index).all()
+
+    memoirs_data = [
+        {
+            "title": m.title,
+            "content": m.content,
+            "year_start": m.year_start,
+            "year_end": m.year_end,
+            "time_period": m.time_period,
+            "created_at": m.created_at.isoformat() if m.created_at else None,
+        }
+        for m in memoirs
+    ]
+
+    return JSONResponse(content={
+        "profile": profile,
+        "conversations": conversations_data,
+        "memoirs": memoirs_data,
+    })
+
+
 @router.delete("/me")
 def delete_user(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """注销用户账号，删除所有相关数据"""
+    """注销用户账号（软删除，数据保留 30 天后可由管理员清理）"""
     user_id = current_user.id
+    now = datetime.utcnow()
 
-    db.query(Memoir).filter(Memoir.user_id == user_id).delete()
+    # 软删除用户
+    current_user.deleted_at = now
+    current_user.is_active = False
 
-    conversations = db.query(Conversation).filter(Conversation.user_id == user_id).all()
-    for conv in conversations:
-        db.query(Message).filter(Message.conversation_id == conv.id).delete()
+    # 级联软删除关联数据
+    db.query(Conversation).filter(
+        Conversation.user_id == user_id,
+        Conversation.deleted_at == None,
+    ).update({"deleted_at": now})
+    db.query(Memoir).filter(
+        Memoir.user_id == user_id,
+        Memoir.deleted_at == None,
+    ).update({"deleted_at": now})
 
-    db.query(Conversation).filter(Conversation.user_id == user_id).delete()
+    # 记录审计日志
+    audit = AuditLog(
+        action="delete_user",
+        target_user_id=user_id,
+        target_label=current_user.phone or current_user.nickname,
+        detail="用户自助注销账号（软删除）",
+    )
+    db.add(audit)
 
-    db.delete(current_user)
     db.commit()
 
     return {"message": "账号已注销"}

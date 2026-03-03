@@ -167,7 +167,8 @@ def process_conversation_end(conversation_id: str, user_id: str):
             # 根据已完成回忆录数量决定话题池操作
             completed_memoir_count = db.query(Memoir).filter(
                 Memoir.user_id == user_id,
-                Memoir.status == "completed"
+                Memoir.status == "completed",
+                Memoir.deleted_at == None,
             ).count()
 
             if completed_memoir_count == 1:

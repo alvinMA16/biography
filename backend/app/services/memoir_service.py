@@ -140,12 +140,16 @@ class MemoirService:
     def get_user_memoirs(self, db: Session, user_id: str) -> List[Memoir]:
         """获取用户的所有回忆录章节"""
         return db.query(Memoir).filter(
-            Memoir.user_id == user_id
+            Memoir.user_id == user_id,
+            Memoir.deleted_at == None,
         ).order_by(Memoir.order_index).all()
 
     def get_memoir(self, db: Session, memoir_id: str) -> Optional[Memoir]:
         """获取单个回忆录章节"""
-        return db.query(Memoir).filter(Memoir.id == memoir_id).first()
+        return db.query(Memoir).filter(
+            Memoir.id == memoir_id,
+            Memoir.deleted_at == None,
+        ).first()
 
     def update_memoir(
         self,

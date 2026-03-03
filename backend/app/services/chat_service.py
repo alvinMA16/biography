@@ -79,7 +79,8 @@ class ChatService:
     def get_user_conversations(self, db: Session, user_id: str) -> List[Conversation]:
         """获取用户的所有对话"""
         return db.query(Conversation).filter(
-            Conversation.user_id == user_id
+            Conversation.user_id == user_id,
+            Conversation.deleted_at == None,
         ).order_by(Conversation.created_at.desc()).all()
 
 

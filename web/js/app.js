@@ -286,7 +286,7 @@ function logout() {
 
 // 注销账号（删除服务器上的所有数据）
 async function deleteAccount() {
-    if (!confirm('确定要注销账号吗？\n\n注销后，您的所有回忆和对话记录都将被永久删除，无法恢复。')) {
+    if (!confirm('确定要注销账号吗？\n\n注销后账号将被停用，数据保留 30 天后将被永久删除。')) {
         return;
     }
 
@@ -306,6 +306,29 @@ async function deleteAccount() {
     } catch (error) {
         console.error('注销账号失败:', error);
         alert('注销失败: ' + error.message);
+    }
+}
+
+// ========== 数据导出 ==========
+
+async function exportMyData() {
+    const dropdown = document.getElementById('userDropdown');
+    dropdown.classList.remove('show');
+
+    try {
+        const data = await api.user.exportData();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '我的回忆录数据.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('导出数据失败:', error);
+        alert('导出失败: ' + error.message);
     }
 }
 

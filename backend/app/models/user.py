@@ -20,6 +20,7 @@ class User(Base):
     settings = Column(JSON, default=dict)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)
 
     # 用户基础信息（通过对话收集）
     birth_year = Column(Integer, nullable=True)  # 出生年份
@@ -39,7 +40,7 @@ class TopicCandidate(Base):
     __tablename__ = "topic_candidates"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     topic = Column(String(200), nullable=False)  # 话题描述（给用户看的选项）
     greeting = Column(Text, nullable=False)  # 对应的开场白
     chat_context = Column(Text, nullable=True)  # 对话时注入的背景上下文

@@ -14,6 +14,16 @@ for i in $(seq 1 60); do
     sleep 1
 done
 
+echo "Checking for pending Alembic migrations..."
+PENDING=$(alembic check 2>&1 || true)
+if echo "$PENDING" | grep -q "New upgrade"; then
+    echo "检测到待执行迁移，先备份数据库..."
+    BACKUP_FILE="/backups/pre_migration_$(date +%Y%m%d_%H%M%S).sql.gz"
+    mkdir -p /backups
+    pg_dump "$DATABASE_URL" | gzip > "$BACKUP_FILE"
+    echo "备份完成: $BACKUP_FILE"
+fi
+
 echo "Running Alembic migrations..."
 alembic upgrade head
 

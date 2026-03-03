@@ -50,6 +50,8 @@ services:
       ADMIN_API_KEY: ${ADMIN_API_KEY:-}
       WORKERS: ${WORKERS:-4}
       DEBUG: ${DEBUG:-false}
+    volumes:
+      - /root/backups:/backups
     logging:
       driver: json-file
       options:

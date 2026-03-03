@@ -83,7 +83,8 @@ class TopicService:
         """获取用户已完成的回忆录数量"""
         return db.query(Memoir).filter(
             Memoir.user_id == user_id,
-            Memoir.status == "completed"
+            Memoir.status == "completed",
+            Memoir.deleted_at == None,
         ).count()
 
     def get_topic_by_id(self, db: Session, topic_id: str) -> Optional[TopicCandidate]:
@@ -325,7 +326,8 @@ class TopicService:
         """获取用户所有回忆录的简要摘要（用于审查）"""
         memoirs = db.query(Memoir).filter(
             Memoir.user_id == user_id,
-            Memoir.status == "completed"
+            Memoir.status == "completed",
+            Memoir.deleted_at == None,
         ).order_by(Memoir.created_at.desc()).all()
 
         if not memoirs:
