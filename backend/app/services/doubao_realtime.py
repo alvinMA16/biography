@@ -143,7 +143,7 @@ class DoubaoRealtimeClient:
         self.on_text = on_text
         self.on_event = on_event
         self.is_connected = False
-        self._greeting_sent = None  # 记录我们发送的开场白，用于去重
+        self._skip_greeting_echo = False  # 跳过开场白回显的整个 TTS 周期
 
     async def connect(self) -> bool:
         """建立 WebSocket 连接"""
@@ -281,8 +281,8 @@ class DoubaoRealtimeClient:
         if content is None:
             content = random.choice(GREETINGS)
 
-        # 记录我们发送的开场白，用于去重
-        self._greeting_sent = content
+        # 标记跳过第一轮 TTS 回显
+        self._skip_greeting_echo = True
         if not self.ws:
             return
 
@@ -316,6 +316,11 @@ class DoubaoRealtimeClient:
                     event = data.get('event')
                     payload = data.get('payload_msg', {})
 
+                    # 第一轮 TTS 结束（开场白回显结束），恢复文本转发
+                    if event == 359 and self._skip_greeting_echo:
+                        print(f"[Doubao] 开场白回显 TTS 结束，恢复文本转发")
+                        self._skip_greeting_echo = False
+
                     if self.on_event:
                         self.on_event(event, payload)
 
@@ -346,17 +351,15 @@ class DoubaoRealtimeClient:
                             if event == 451:
                                 is_asr = True
 
-                        # 发送文本（带去重）
+                        # 发送文本
                         if text and self.on_text:
                             if is_asr:
                                 print(f"[Doubao] ASR 最终结果: {text[:50]}...")
                                 self.on_text('asr', text)
                             elif event != 451:
-                                # AI 回复 - 去重检查
-                                # 如果收到的文本和我们发送的开场白相同，跳过（服务器回显）
-                                if self._greeting_sent and text == self._greeting_sent:
-                                    print(f"[Doubao] 跳过开场白回显: {text[:30]}...")
-                                    self._greeting_sent = None  # 只跳过一次
+                                # AI 回复 - 开场白回显期间跳过文本转发
+                                if self._skip_greeting_echo:
+                                    pass  # 跳过，前端会从 greeting_text 消息显示
                                 else:
                                     self.on_text('response', text)
 

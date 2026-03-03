@@ -319,6 +319,13 @@ async def realtime_dialog(websocket: WebSocket):
         # 发送开场白
         await client.say_hello(greeting)
 
+        # 把开场白文本发给前端，由前端直接显示（不依赖豆包回显）
+        if greeting:
+            await websocket.send_json({
+                "type": "greeting_text",
+                "content": greeting
+            })
+
         # 处理前端消息
         while True:
             try:

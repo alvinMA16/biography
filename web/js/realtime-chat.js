@@ -32,7 +32,8 @@ let gainNode = null;   // 音量控制节点
 let isRecording = false;
 let currentAIResponse = '';  // 累积AI回复文本
 let isAISpeaking = false;    // AI是否正在说话
-let isFirstTTS = true;       // 是否是第一次 TTS（开场白），用于去重
+let isFirstTTS = true;       // 是否是第一次 TTS（开场白）
+let pendingGreeting = null;  // 后端发来的开场白文本，等 TTS 开始时显示
 
 // 配置
 const SAMPLE_RATE_INPUT = 16000;   // 输入采样率
@@ -247,6 +248,11 @@ function handleServerMessage(message) {
             }
             break;
 
+        case 'greeting_text':
+            // 后端发来的开场白文本，等 TTS 开始时直接显示
+            pendingGreeting = message.content;
+            break;
+
         case 'profile_collection_complete':
             // 后端 Qwen 验证信息收集完成，自动结束对话
             if (isProfileCollectionMode && !autoEndTriggered) {
@@ -273,6 +279,12 @@ function handleEvent(event, payload) {
             // TTS 开始 - AI 开始说话
             isAISpeaking = true;
             currentAIResponse = '';  // 清空，准备接收新回复
+            // 第一次 TTS：直接显示后端发来的开场白（不依赖豆包回显）
+            if (isFirstTTS && pendingGreeting) {
+                currentAIResponse = pendingGreeting;
+                updateAIText(pendingGreeting);
+                pendingGreeting = null;
+            }
             updateVoiceStatus('记录师正在说话');
             setVoiceActive(false);
             break;
