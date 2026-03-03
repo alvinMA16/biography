@@ -69,6 +69,7 @@ class WelcomeMessage(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     content = Column(Text, nullable=False)  # 激励语内容
+    show_greeting = Column(Boolean, default=True)  # 是否显示前面的问候语（如"早上好，张先生"）
     is_active = Column(Boolean, default=True)  # 是否启用
     sort_order = Column(Integer, default=0)  # 排序权重
     created_at = Column(DateTime, default=datetime.utcnow)

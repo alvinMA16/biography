@@ -537,6 +537,7 @@ function showWelcomeMessageModal() {
     document.getElementById('welcomeMessageId').value = '';
     document.getElementById('welcomeMessageContent').value = '';
     document.getElementById('welcomeMessageSortOrder').value = '0';
+    document.getElementById('welcomeMessageShowGreeting').checked = true;
     document.getElementById('welcomeMessageModal').style.display = 'flex';
     document.getElementById('welcomeMessageContent').focus();
 }
@@ -549,6 +550,7 @@ function editWelcomeMessage(id) {
     document.getElementById('welcomeMessageId').value = id;
     document.getElementById('welcomeMessageContent').value = msg.content;
     document.getElementById('welcomeMessageSortOrder').value = msg.sort_order;
+    document.getElementById('welcomeMessageShowGreeting').checked = msg.show_greeting !== false;
     document.getElementById('welcomeMessageModal').style.display = 'flex';
     document.getElementById('welcomeMessageContent').focus();
 }
@@ -567,7 +569,8 @@ async function saveWelcomeMessage() {
         return;
     }
 
-    const payload = { content, sort_order: sortOrder };
+    const showGreeting = document.getElementById('welcomeMessageShowGreeting').checked;
+    const payload = { content, sort_order: sortOrder, show_greeting: showGreeting };
 
     try {
         if (id) {

@@ -151,7 +151,7 @@ def get_welcome_messages(
     messages = db.query(WelcomeMessage).filter(
         WelcomeMessage.is_active == True
     ).order_by(WelcomeMessage.sort_order.asc()).all()
-    return [{"id": m.id, "content": m.content} for m in messages]
+    return [{"id": m.id, "content": m.content, "show_greeting": m.show_greeting} for m in messages]
 
 
 @router.delete("/me")

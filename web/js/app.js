@@ -54,10 +54,16 @@ function updateWelcomeText(profile, messages) {
     const name = getDisplayName(profile);
     const greetWord = getGreeting();
     const greeting = name ? `${greetWord}，${name}。` : `${greetWord}。`;
-    const pool = (messages && messages.length > 0) ? messages : WELCOME_MESSAGES;
-    const message = pool[Math.floor(Math.random() * pool.length)];
+    const pool = (messages && messages.length > 0) ? messages : WELCOME_MESSAGES.map(c => ({ content: c, show_greeting: true }));
+    const picked = pool[Math.floor(Math.random() * pool.length)];
+    const content = typeof picked === 'string' ? picked : picked.content;
+    const showGreeting = typeof picked === 'string' ? true : picked.show_greeting !== false;
 
-    container.innerHTML = `<p>${greeting}</p><p style="white-space:pre-line">${message}</p>`;
+    if (showGreeting) {
+        container.innerHTML = `<p>${greeting}</p><p style="white-space:pre-line">${content}</p>`;
+    } else {
+        container.innerHTML = `<p style="white-space:pre-line">${content}</p>`;
+    }
 }
 
 // 初始化应用
@@ -88,7 +94,7 @@ async function initApp() {
         try {
             const msgs = await api.user.getWelcomeMessages();
             if (msgs && msgs.length > 0) {
-                welcomeMessages = msgs.map(m => m.content);
+                welcomeMessages = msgs.map(m => ({ content: m.content, show_greeting: m.show_greeting }));
             }
         } catch (e) {
             console.warn('加载激励语失败，使用默认文案:', e);

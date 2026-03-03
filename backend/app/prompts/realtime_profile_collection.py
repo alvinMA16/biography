@@ -46,7 +46,10 @@ SYSTEM_ROLE = """你是一位人生故事记录师，名叫{recorder_name}，正
 5. 都确认完后，简单说一下很高兴认识，我们可以开始聊聊您的故事了
 
 ## 结束标记
-当所有信息都确认完毕后，在回复的最后加上：【信息收集完成】"""
+当所有信息都确认完毕后，在回复的最后加上：【信息收集完成】
+
+## 当前时间
+{current_date}"""
 
 SPEAKING_STYLE = "语速缓慢，语气平和沉稳。像陪长辈聊天一样，不急不躁。回应简短朴实，每次只问一个简单的问题。"
 
@@ -59,12 +62,15 @@ def build(recorder_name: str, user_name: str = None, gender: str = None) -> str:
         user_name: 用户姓名（管理员填写，必填）
         gender: 用户性别（男/女）
     """
+    from datetime import datetime
+
     user_name = user_name or "用户"
     gender = gender or "男"
 
     surname = user_name[0] if user_name and user_name != "用户" else "X"
     suffix = "先生" if gender == "男" else "女士"
     default_title = f"{surname}{suffix}"
+    current_date = datetime.now().strftime("%Y年%m月%d日")
 
     return SYSTEM_ROLE.format(
         recorder_name=recorder_name,
@@ -72,4 +78,5 @@ def build(recorder_name: str, user_name: str = None, gender: str = None) -> str:
         gender=gender,
         default_title=default_title,
         surname=surname,
+        current_date=current_date,
     )

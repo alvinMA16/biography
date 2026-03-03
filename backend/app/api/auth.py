@@ -1080,6 +1080,7 @@ def admin_delete_era_memory(
 class WelcomeMessageItem(BaseModel):
     id: str
     content: str
+    show_greeting: bool = True
     is_active: bool = True
     sort_order: int = 0
     created_at: Optional[datetime] = None
@@ -1088,12 +1089,14 @@ class WelcomeMessageItem(BaseModel):
 
 class WelcomeMessageCreateRequest(BaseModel):
     content: str
+    show_greeting: bool = True
     is_active: bool = True
     sort_order: int = 0
 
 
 class WelcomeMessageUpdateRequest(BaseModel):
     content: Optional[str] = None
+    show_greeting: Optional[bool] = None
     is_active: Optional[bool] = None
     sort_order: Optional[int] = None
 
@@ -1109,6 +1112,7 @@ def admin_list_welcome_messages(
         WelcomeMessageItem(
             id=m.id,
             content=m.content,
+            show_greeting=m.show_greeting,
             is_active=m.is_active,
             sort_order=m.sort_order,
             created_at=m.created_at,
@@ -1127,6 +1131,7 @@ def admin_create_welcome_message(
     """管理员新增激励语"""
     msg = WelcomeMessage(
         content=req.content,
+        show_greeting=req.show_greeting,
         is_active=req.is_active,
         sort_order=req.sort_order,
     )
@@ -1138,6 +1143,7 @@ def admin_create_welcome_message(
     return WelcomeMessageItem(
         id=msg.id,
         content=msg.content,
+        show_greeting=msg.show_greeting,
         is_active=msg.is_active,
         sort_order=msg.sort_order,
         created_at=msg.created_at,
@@ -1159,6 +1165,8 @@ def admin_update_welcome_message(
 
     if req.content is not None:
         msg.content = req.content
+    if req.show_greeting is not None:
+        msg.show_greeting = req.show_greeting
     if req.is_active is not None:
         msg.is_active = req.is_active
     if req.sort_order is not None:
@@ -1171,6 +1179,7 @@ def admin_update_welcome_message(
     return WelcomeMessageItem(
         id=msg.id,
         content=msg.content,
+        show_greeting=msg.show_greeting,
         is_active=msg.is_active,
         sort_order=msg.sort_order,
         created_at=msg.created_at,
