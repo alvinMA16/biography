@@ -112,7 +112,7 @@ async function initApp() {
         // profile_completed 还是 false
         // 检查是否有 profileJustCompleted 标记（说明刚从信息收集对话返回，后台还在处理）
         if (storage.get('profileJustCompleted')) {
-            console.log('信息收集刚完成，后台正在处理，跳过引导流程');
+            // 信息收集刚完成，后台正在处理，跳过引导流程
             return;
         }
 

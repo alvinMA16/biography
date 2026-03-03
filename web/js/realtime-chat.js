@@ -63,7 +63,7 @@ window.onload = async function() {
         try {
             const profile = await api.user.getProfile();
             isProfileCollectionMode = !profile.profile_completed;
-            if (isProfileCollectionMode) {
+            if (isProfileCollectionMode && DEBUG_MODE) {
                 console.log('进入信息收集模式');
             }
         } catch (error) {
@@ -83,7 +83,7 @@ window.onload = async function() {
 // 提前请求麦克风权限，触发用户交互以解锁 AudioContext
 async function requestMicrophoneEarly() {
     try {
-        console.log('提前请求麦克风权限...');
+        DEBUG_MODE && console.log('提前请求麦克风权限...');
         mediaStream = await navigator.mediaDevices.getUserMedia({
             audio: {
                 sampleRate: SAMPLE_RATE_INPUT,
@@ -93,12 +93,12 @@ async function requestMicrophoneEarly() {
                 autoGainControl: true
             }
         });
-        console.log('麦克风权限已获取');
+        DEBUG_MODE && console.log('麦克风权限已获取');
 
         // 用户点击了"允许"，这是用户交互，现在可以 resume AudioContext
         if (playbackContext && playbackContext.state === 'suspended') {
             await playbackContext.resume();
-            console.log('AudioContext 已恢复，状态:', playbackContext.state);
+            DEBUG_MODE && console.log('AudioContext 已恢复，状态:', playbackContext.state);
         }
     } catch (e) {
         console.error('麦克风权限请求失败:', e);
@@ -157,10 +157,12 @@ async function connectWebSocket() {
     const endpoint = ENHANCED_MODE ? '/api/realtime-enhanced/dialog' : '/api/realtime/dialog';
     const wsUrl = `${wsProtocol}://${window.location.host}${endpoint}?${params.toString()}`;
 
-    console.log('连接 WebSocket:', wsUrl);
-    console.log('  - 模式:', ENHANCED_MODE ? '增强模式' : '普通模式');
-    console.log('  - 记录师:', recorderInfo.name);
-    console.log('  - 开场白:', selectedGreeting ? '自定义' : '默认');
+    if (DEBUG_MODE) {
+        console.log('连接 WebSocket:', wsUrl);
+        console.log('  - 模式:', ENHANCED_MODE ? '增强模式' : '普通模式');
+        console.log('  - 记录师:', recorderInfo.name);
+        console.log('  - 开场白:', selectedGreeting ? '自定义' : '默认');
+    }
 
     // Debug 模式下显示干预容器
     if (DEBUG_MODE && ENHANCED_MODE) {
@@ -174,7 +176,7 @@ async function connectWebSocket() {
         ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
-            console.log('WebSocket 已连接');
+            DEBUG_MODE && console.log('WebSocket 已连接');
         };
 
         ws.onmessage = (event) => {
@@ -188,7 +190,7 @@ async function connectWebSocket() {
         };
 
         ws.onclose = () => {
-            console.log('WebSocket 已关闭');
+            DEBUG_MODE && console.log('WebSocket 已关闭');
             isConnected = false;
             stopRecording();
         };
@@ -200,7 +202,10 @@ async function connectWebSocket() {
 }
 
 function handleServerMessage(message) {
-    console.log('收到消息:', message.type, message);
+    // 音频消息量太大，debug 模式也不打印
+    if (DEBUG_MODE && message.type !== 'audio') {
+        console.log('收到消息:', message.type, message);
+    }
 
     switch (message.type) {
         case 'status':
@@ -224,8 +229,8 @@ function handleServerMessage(message) {
         case 'text':
             // 收到文本
             if (message.text_type === 'asr') {
-                // 用户说的话 - 不显示，只打印日志
-                console.log('用户说:', message.content);
+                // 用户说的话 - 不显示
+                DEBUG_MODE && console.log('用户说:', message.content);
             } else if (message.text_type === 'response') {
                 // AI 回复文字 - 累积并显示
                 if (isAISpeaking && message.content) {
@@ -257,7 +262,7 @@ function handleServerMessage(message) {
             // 后端 Qwen 验证信息收集完成，自动结束对话
             if (isProfileCollectionMode && !autoEndTriggered) {
                 autoEndTriggered = true;
-                console.log('收到后端信息收集完成确认，自动结束对话');
+                DEBUG_MODE && console.log('收到后端信息收集完成确认，自动结束对话');
                 autoEndProfileCollection();
             }
             break;
@@ -272,7 +277,7 @@ function handleServerMessage(message) {
 }
 
 function handleEvent(event, payload) {
-    console.log('事件:', event, payload);
+    DEBUG_MODE && console.log('事件:', event, payload);
 
     switch (event) {
         case 350:
@@ -415,7 +420,7 @@ function initPlayback() {
     gainNode.gain.value = 1.0;
     gainNode.connect(playbackContext.destination);
 
-    console.log('播放上下文采样率:', playbackContext.sampleRate);
+    DEBUG_MODE && console.log('播放上下文采样率:', playbackContext.sampleRate);
 }
 
 async function queueAudio(audioData) {
@@ -649,7 +654,7 @@ function base64ToArrayBuffer(base64) {
 
 // 自动结束信息收集（由AI触发）
 async function autoEndProfileCollection() {
-    console.log('自动结束信息收集对话');
+    DEBUG_MODE && console.log('自动结束信息收集对话');
     conversationEnded = true;
 
     stopRecording();
@@ -721,7 +726,7 @@ async function showWelcomeModal() {
     // 直接调用后端标记 profile 完成，不依赖后台异步任务
     try {
         await api.user.completeProfile();
-        console.log('已标记 profile 完成');
+        DEBUG_MODE && console.log('已标记 profile 完成');
     } catch (error) {
         console.error('标记 profile 完成失败:', error);
     }
