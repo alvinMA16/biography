@@ -72,6 +72,85 @@ docker compose exec backend python scripts/migrate_data.py \
   --dry-run
 ```
 
+## 测试环境
+
+生产和测试环境在同一台机器上，通过不同的分支、目录、容器和域名隔离。
+
+```
+biography/      (main 分支) → 生产环境 → https://storyofme.cn
+biography-test/ (dev 分支)  → 测试环境 → https://test.storyofme.cn
+```
+
+### 目录结构
+
+| | 生产环境 | 测试环境 |
+|---|---|---|
+| 代码目录 | `/root/alvin/biography/` | `/root/alvin/biography-test/`（git worktree） |
+| Git 分支 | `main` | `dev` |
+| 后端端口 | `127.0.0.1:8001` | `127.0.0.1:8002` |
+| 数据库端口 | `127.0.0.1:5432` | `127.0.0.1:5433` |
+| 域名 | `storyofme.cn` | `test.storyofme.cn` |
+| Compose 文件 | `docker-compose.yml` | `docker-compose.test.yml` |
+| 项目名 | `biography` | `biography-test` |
+| 环境变量 | `.env` | `.env`（独立，DEBUG=true） |
+| 管理台 | `https://storyofme.cn/admin.html` | `https://test.storyofme.cn/admin.html` |
+
+### 日常开发流程
+
+```
+biography-test/ (dev分支)    biography/ (main分支)
+       │                           │
+    改代码                        不动
+       │                           │
+    部署测试环境                    │
+       │                           │
+    验证通过 ──── git merge dev ──→ │
+                                   │
+                              部署生产环境
+```
+
+**1. 在测试环境改代码**
+
+所有改动在 `/root/alvin/biography-test/` 下进行（dev 分支）。
+
+**2. 部署测试环境**
+
+```bash
+cd /root/alvin/biography-test
+docker compose -p biography-test -f docker-compose.test.yml up -d --build
+```
+
+访问 `https://test.storyofme.cn` 验证。
+
+**3. 测试通过后同步到生产**
+
+```bash
+# 在测试目录提交代码
+cd /root/alvin/biography-test
+git add .
+git commit -m "描述改动"
+
+# 切到生产目录，合并 dev 分支
+cd /root/alvin/biography
+git merge dev
+
+# 重新部署生产
+docker compose up -d --build
+```
+
+### 测试环境管理
+
+```bash
+# 查看测试环境状态
+docker compose -p biography-test -f /root/alvin/biography-test/docker-compose.test.yml ps
+
+# 查看测试环境日志
+docker compose -p biography-test -f /root/alvin/biography-test/docker-compose.test.yml logs -f backend
+
+# 停止测试环境（不影响生产）
+docker compose -p biography-test -f /root/alvin/biography-test/docker-compose.test.yml down
+```
+
 ## 本地开发（SQLite 模式）
 
 不需要 Docker，直接运行：
