@@ -639,6 +639,7 @@ function base64ToArrayBuffer(base64) {
 // 自动结束信息收集（由AI触发）
 async function autoEndProfileCollection() {
     console.log('自动结束信息收集对话');
+    conversationEnded = true;
 
     stopRecording();
 
@@ -662,11 +663,15 @@ async function autoEndProfileCollection() {
     }
 }
 
+let conversationEnded = false;
+
 async function endChat() {
+    if (conversationEnded) return;
     if (!confirm('确定要结束这次对话吗？')) {
         return;
     }
 
+    conversationEnded = true;
     stopRecording();
 
     if (ws) {
@@ -690,13 +695,13 @@ async function endChat() {
             // 显示简短提示后跳转
             showToast('对话已保存，可在「我的回忆」中查看');
             setTimeout(() => {
-                goHome();
+                navigateHome();
             }, 1500);
         }
     } catch (error) {
         console.error('结束对话失败:', error);
         alert('操作失败: ' + error.message);
-        goHome();
+        navigateHome();
     }
 }
 
@@ -723,7 +728,7 @@ async function showWelcomeModal() {
     }
 }
 
-function goHome() {
+function navigateHome() {
     stopRecording();
     if (ws) {
         ws.close();
@@ -732,9 +737,31 @@ function goHome() {
     window.location.href = 'index.html';
 }
 
+// 兼容旧调用（欢迎弹窗等）
+function goHome() {
+    navigateHome();
+}
+
 window.onbeforeunload = function() {
     stopRecording();
     if (ws) {
         ws.close();
+    }
+    // 用户直接关闭/刷新页面时，兜底结束对话（keepalive 允许页面关闭后请求继续）
+    if (conversationId && !conversationEnded) {
+        const token = storage.get('token');
+        const url = `${API_BASE_URL}/conversation/${conversationId}/end-quick`;
+        try {
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                keepalive: true,
+            });
+        } catch (e) {
+            // 忽略，页面即将关闭
+        }
     }
 };
