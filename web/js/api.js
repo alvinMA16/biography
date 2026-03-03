@@ -89,6 +89,13 @@ const api = {
             });
         },
 
+        async changePassword(oldPassword, newPassword) {
+            return api.request('/user/me/change-password', {
+                method: 'POST',
+                body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+            });
+        },
+
         async getWelcomeMessages() {
             return api.request('/user/welcome-messages');
         },

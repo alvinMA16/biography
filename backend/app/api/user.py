@@ -5,9 +5,14 @@ from typing import Optional, Dict, Any
 
 from app.database import get_db
 from app.models import User, Conversation, Message, Memoir, WelcomeMessage
-from app.auth import get_current_user
+from app.auth import get_current_user, verify_password, hash_password
 
 router = APIRouter()
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
 
 
 class UserSettings(BaseModel):
@@ -50,6 +55,22 @@ class EraMemoriesResponse(BaseModel):
 def get_user(current_user: User = Depends(get_current_user)):
     """获取当前用户信息"""
     return current_user
+
+
+@router.post("/me/change-password")
+def change_password(
+    req: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """修改密码"""
+    if not verify_password(req.old_password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="旧密码不正确")
+    if len(req.new_password) < 6:
+        raise HTTPException(status_code=400, detail="新密码至少需要6位")
+    current_user.password_hash = hash_password(req.new_password)
+    db.commit()
+    return {"message": "密码修改成功"}
 
 
 @router.put("/me/settings", response_model=UserResponse)

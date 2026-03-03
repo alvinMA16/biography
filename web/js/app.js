@@ -309,6 +309,49 @@ async function deleteAccount() {
     }
 }
 
+// ========== 修改密码 ==========
+
+function openChangePassword() {
+    const dropdown = document.getElementById('userDropdown');
+    dropdown.classList.remove('show');
+
+    document.getElementById('oldPassword').value = '';
+    document.getElementById('newPassword').value = '';
+    document.getElementById('confirmPassword').value = '';
+    document.getElementById('changePasswordModal').style.display = 'flex';
+}
+
+function closeChangePassword() {
+    document.getElementById('changePasswordModal').style.display = 'none';
+}
+
+async function submitChangePassword() {
+    const oldPwd = document.getElementById('oldPassword').value;
+    const newPwd = document.getElementById('newPassword').value;
+    const confirmPwd = document.getElementById('confirmPassword').value;
+
+    if (!oldPwd || !newPwd || !confirmPwd) {
+        alert('请填写所有密码字段');
+        return;
+    }
+    if (newPwd.length < 6) {
+        alert('新密码至少需要6位');
+        return;
+    }
+    if (newPwd !== confirmPwd) {
+        alert('两次输入的新密码不一致');
+        return;
+    }
+
+    try {
+        await api.user.changePassword(oldPwd, newPwd);
+        alert('密码修改成功');
+        closeChangePassword();
+    } catch (error) {
+        alert(error.message || '密码修改失败');
+    }
+}
+
 // ========== 记录师选择 ==========
 
 const RECORDERS = {
