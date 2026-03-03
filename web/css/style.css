@@ -1632,6 +1632,56 @@ body {
     border-color: var(--color-accent);
 }
 
+/* Toggle 开关 */
+.admin-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    margin-bottom: 0;
+    font-size: 0.85em;
+    color: var(--color-text-light);
+    font-family: var(--font-sans);
+}
+
+.admin-toggle input {
+    display: none;
+}
+
+.admin-toggle-slider {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    background: #ddd;
+    border-radius: 11px;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.admin-toggle-slider::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+}
+
+.admin-toggle input:checked + .admin-toggle-slider {
+    background: var(--color-accent);
+}
+
+.admin-toggle input:checked + .admin-toggle-slider::after {
+    transform: translateX(18px);
+}
+
+.admin-toggle-label {
+    color: var(--color-text-light);
+}
+
 /* 密码展示 */
 .admin-password-hint {
     margin-bottom: 16px;

@@ -154,13 +154,14 @@
                                 <thead>
                                     <tr>
                                         <th>内容</th>
+                                        <th style="width:80px;">问候语</th>
                                         <th style="width:80px;">排序</th>
                                         <th style="width:80px;">状态</th>
                                         <th style="width:150px;">操作</th>
                                     </tr>
                                 </thead>
                                 <tbody id="welcomeMessageTableBody">
-                                    <tr><td colspan="4" class="admin-table-empty">加载中...</td></tr>
+                                    <tr><td colspan="5" class="admin-table-empty">加载中...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -857,9 +858,11 @@
                         <input type="number" id="welcomeMessageSortOrder" class="admin-input" placeholder="0" min="0" value="0">
                     </div>
                     <div class="admin-form-group">
-                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                        <label>显示问候语</label>
+                        <label class="admin-toggle">
                             <input type="checkbox" id="welcomeMessageShowGreeting" checked>
-                            显示问候语（如"早上好，张先生"）
+                            <span class="admin-toggle-slider"></span>
+                            <span class="admin-toggle-label">如"早上好，张先生"</span>
                         </label>
                     </div>
                 </div>
