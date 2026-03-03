@@ -117,8 +117,10 @@ biography-test/ (dev分支)    biography/ (main分支)
 
 ```bash
 cd /root/alvin/biography-test
-docker compose -p biography-test -f docker-compose.test.yml up -d --build
+./deploy.sh
 ```
+
+脚本会自动停止旧容器 → 构建镜像 → 启动 → 健康检查，无需手动 `docker compose down`。
 
 访问 `https://test.storyofme.cn` 验证。
 
@@ -141,14 +143,19 @@ docker compose up -d --build
 ### 测试环境管理
 
 ```bash
-# 查看测试环境状态
-docker compose -p biography-test -f /root/alvin/biography-test/docker-compose.test.yml ps
+cd /root/alvin/biography-test
 
-# 查看测试环境日志
-docker compose -p biography-test -f /root/alvin/biography-test/docker-compose.test.yml logs -f backend
+# 部署（自动 down → build → up → 健康检查）
+./deploy.sh
 
-# 停止测试环境（不影响生产）
-docker compose -p biography-test -f /root/alvin/biography-test/docker-compose.test.yml down
+# 查看状态
+docker compose -p biography-test -f docker-compose.test.yml ps
+
+# 查看日志
+docker compose -p biography-test -f docker-compose.test.yml logs -f backend
+
+# 停止（不影响生产）
+docker compose -p biography-test -f docker-compose.test.yml down
 ```
 
 ## 本地开发（SQLite 模式）
