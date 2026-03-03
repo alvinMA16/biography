@@ -20,11 +20,10 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 Frontend: open `web/index.html` directly or `cd web && python -m http.server 3000`
 
 ### Docker Deployment (PostgreSQL)
+**必须使用 deploy.sh 脚本部署，不要手动执行 docker compose 命令！**
 ```bash
-cp .env.example .env  # fill in real values
-docker compose up -d --build
+./deploy.sh              # 自动识别正式/测试环境，构建并部署
 docker compose logs -f backend  # check logs
-curl http://localhost/health     # health check
 ```
 
 ### Database Migrations (Alembic)

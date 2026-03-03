@@ -270,7 +270,7 @@ function handleServerMessage(message) {
         case 'intervention':
             // 干预状态通知 - 仅在 debug + 增强模式下显示
             if (DEBUG_MODE && ENHANCED_MODE) {
-                showInterventionBubble(message.triggered, message.guidance);
+                showInterventionBubble(message.triggered, message.guidance, message.type_label, message.mechanism, message.timeout, message.timed_out);
             }
             break;
     }
@@ -506,21 +506,30 @@ function applyFade(samples) {
 // ========== 界面控制 ==========
 
 // 显示干预调试气泡（仅 debug + 增强模式）
-function showInterventionBubble(triggered, guidance) {
+function showInterventionBubble(triggered, guidance, typeLabel, mechanism, timeout, timedOut) {
     const container = document.getElementById('interventionContainer');
     if (!container) return;
 
     const bubble = document.createElement('div');
-    bubble.className = 'intervention-bubble' + (triggered ? '' : ' no-intervention');
-
     const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
     if (triggered && guidance) {
+        bubble.className = 'intervention-bubble';
+        const mechanismLabel = mechanism === 'knowledge' ? '知识注入' : '指令注入';
+        const tag = typeLabel ? `${typeLabel} · ${mechanismLabel}` : '触发干预';
         bubble.innerHTML = `
-            <div class="bubble-header">${time} - 触发干预</div>
+            <div class="bubble-header">${time} - ${tag}</div>
             <div class="bubble-content">${guidance}</div>
         `;
+    } else if (timeout) {
+        bubble.className = 'intervention-bubble intervention-timeout';
+        const detail = timedOut && timedOut.length ? timedOut.join('、') : '全部';
+        bubble.innerHTML = `
+            <div class="bubble-header">${time} - 判断超时</div>
+            <div class="bubble-content">超时任务: ${detail}</div>
+        `;
     } else {
+        bubble.className = 'intervention-bubble no-intervention';
         bubble.innerHTML = `
             <div class="bubble-header">${time}</div>
             <div class="bubble-content">无需干预</div>

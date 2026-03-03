@@ -122,10 +122,11 @@ class DoubaoRealtimeEnhancedClient:
         recorder_name: str = "小安",
         user_nickname: Optional[str] = None,
         topic: Optional[str] = None,
+        era_memories: Optional[str] = None,
         on_audio: Optional[Callable[[bytes], None]] = None,
         on_text: Optional[Callable[[str, str], None]] = None,
         on_event: Optional[Callable[[int, Dict], None]] = None,
-        on_asr_ended: Optional[Callable[[str], None]] = None,  # 新增：ASR 结束回调
+        on_asr_ended: Optional[Callable[[str], None]] = None,
     ):
         self.ws = None
         self.session_id = str(uuid.uuid4())
@@ -133,6 +134,7 @@ class DoubaoRealtimeEnhancedClient:
         self.recorder_name = recorder_name
         self.user_nickname = user_nickname
         self.topic = topic
+        self.era_memories = era_memories
         self.on_audio = on_audio
         self.on_text = on_text
         self.on_event = on_event
@@ -181,6 +183,18 @@ class DoubaoRealtimeEnhancedClient:
 
             # 获取预设对话示例
             dialog_context = dialog_examples.get_examples()
+
+            # 预加载精简版时代记忆（如果有）
+            if self.era_memories:
+                # 截取前 500 字作为精简版，避免占用太多上下文
+                condensed = self.era_memories[:500]
+                if len(self.era_memories) > 500:
+                    condensed += "……"
+                dialog_context.extend([
+                    {"role": "user", "text": f"【背景知识】以下是与用户年代相关的历史背景，在对话中可以自然地运用：{condensed}"},
+                    {"role": "assistant", "text": "好的，我了解了这些历史背景，会在合适的时候自然地融入对话。"},
+                ])
+                print(f"[Doubao Enhanced] 预加载时代记忆: {len(condensed)} 字")
 
             # StartSession request - 带 dialog_context
             session_config = {
@@ -275,23 +289,67 @@ class DoubaoRealtimeEnhancedClient:
         await self.ws.send(request)
         print(f"[Doubao Enhanced] 发送开场白: {content[:50]}...")
 
-    async def inject_guidance(self, guidance: str) -> None:
+    # 不同干预类型的注入话术
+    INJECTION_FRAMES = {
+        "important_clue": (
+            "【系统指令 - 必须执行】用户刚才提到了一个重要线索，你需要追问把信息收集完整。"
+            "先简短回应用户，然后从以下方向中选一个去追问具体细节：\n{guidance}",
+            "明白了，我会抓住这个线索，把具体信息问清楚。"
+        ),
+        "stagnation": (
+            "【系统指令 - 必须执行】对话在同一个点上打转了，用户说不出新内容了。"
+            "你需要换一个全新的方向，去了解用户人生中其他方面的信息。"
+            "先简短回应，然后从以下方向中选一个最自然的展开：\n{guidance}",
+            "明白了，我会换个方向，聊点不一样的。"
+        ),
+        "topic_drift": (
+            "【系统指令 - 必须执行】你刚才的提问跑偏了，陷入了操作细节或者在反复追问感受。"
+            "请调整方向，去收集有用的人生信息——具体的人、事、经历。"
+            "先简短回应用户，然后从以下方向中选一个展开：\n{guidance}",
+            "明白了，我会调整方向，去问具体的人和事。"
+        ),
+    }
+
+    async def inject_guidance(self, guidance: str, mechanism: str = "instruction", intervention_type: str = "") -> None:
         """
         注入干预引导
-        通过 ConversationCreate 事件注入，让模型在上下文中看到这个引导
+        通过 ConversationCreate 事件(510)注入，让模型在上下文中看到这个引导
+
+        Args:
+            guidance: 干预内容（2-3个可选方向，或背景知识）
+            mechanism: 注入机制 - "instruction" 或 "knowledge"
+            intervention_type: 干预类型 - topic_drift/stagnation/important_clue/era_trigger
         """
         if not self.ws or not self.is_connected:
             return
 
-        # 构造一轮"系统提示"对话
-        payload = {
-            "items": [
-                {"role": "user", "text": f"【系统提示】{guidance}"},
-                {"role": "assistant", "text": "好的，我会按这个方向引导对话。"}
-            ]
-        }
+        if mechanism == "knowledge":
+            # 知识注入：提供背景知识，让模型自然融入对话
+            payload = {
+                "items": [
+                    {"role": "user", "text": f"【背景知识】{guidance} 你可以用这些背景自然地和用户聊这段经历。"},
+                    {"role": "assistant", "text": "好的，我了解了这段历史背景。"}
+                ]
+            }
+        else:
+            # 行为指令：根据干预类型选择对应的话术框架
+            frame = self.INJECTION_FRAMES.get(intervention_type)
+            if frame:
+                user_text = frame[0].format(guidance=guidance)
+                assistant_text = frame[1]
+            else:
+                # 兜底
+                user_text = f"【系统指令 - 必须执行】请根据用户的回答，从以下方向中选一个最自然的展开：\n{guidance}"
+                assistant_text = "收到，我会选择最合适的方向。"
 
-        print(f"[Doubao Enhanced] 注入干预引导: {guidance[:80]}...")
+            payload = {
+                "items": [
+                    {"role": "user", "text": user_text},
+                    {"role": "assistant", "text": assistant_text}
+                ]
+            }
+
+        print(f"[Doubao Enhanced] 注入干预[{mechanism}]: {guidance[:80]}...")
 
         request = bytearray(generate_header())
         request.extend(int(510).to_bytes(4, 'big'))  # 事件 510: ConversationCreate

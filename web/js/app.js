@@ -253,8 +253,11 @@ async function selectTopic(topicId, topic, greeting, context, ageStart, ageEnd) 
             storage.set('selectedTopicAgeEnd', ageEnd);
         }
 
-        // 跳转到对话页面
-        window.location.href = 'chat.html';
+        // 启用增强模式（干预系统）
+        storage.set('useEnhancedMode', 'true');
+
+        // 跳转到对话页面（带 debug 参数以显示干预气泡）
+        window.location.href = 'chat.html?debug=1';
     } catch (error) {
         console.error('开始对话失败:', error);
         alert('开始对话失败: ' + error.message);

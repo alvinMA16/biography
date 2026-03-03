@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     # 通义千问 API配置（备用）
     dashscope_api_key: str = ""
     dashscope_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-    dashscope_model: str = "qwen-plus"
+    dashscope_model: str = "qwen3.5-plus"
     dashscope_model_fast: str = "qwen-turbo"
 
     # 阿里云语音识别配置（备用）
@@ -38,7 +38,8 @@ class Settings(BaseSettings):
 
     # 增强模式 - 干预相关配置
     intervention_enabled: bool = True           # 是否启用干预
-    intervention_timeout_ms: int = 8000         # 干预判断超时（毫秒）
+    intervention_timeout_ms: int = 6000         # 干预判断超时（毫秒）- TTS结束后的沉默间隙执行
+    intervention_model: str = "qwen-turbo"      # 干预判断用的模型（需要快，qwen3.5-plus太慢会超时）
 
     class Config:
         env_file = ".env"
