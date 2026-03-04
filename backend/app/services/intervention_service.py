@@ -6,9 +6,9 @@
 import json
 import asyncio
 from typing import List, Dict, Optional, Tuple
-from openai import AsyncOpenAI
 
 from app.config import settings
+from app.services.llm_client import llm_achat
 from app.prompts import (
     intervention_topic_drift,
     intervention_important_clue,
@@ -55,12 +55,6 @@ TYPE_MECHANISM = {
 
 
 class InterventionService:
-    def __init__(self):
-        self.client = AsyncOpenAI(
-            api_key=settings.dashscope_api_key,
-            base_url=settings.dashscope_base_url
-        )
-        self.model = settings.intervention_model
 
     async def judge_and_intervene(
         self,
@@ -194,14 +188,15 @@ class InterventionService:
     async def _call_llm(self, prompt: str) -> Optional[str]:
         """调用 LLM 进行判断"""
         try:
-            response = await self.client.chat.completions.create(
-                model=self.model,
+            response = await llm_achat(
+                "intervention",
                 messages=[{"role": "user", "content": prompt}],
+                fast=True,
                 temperature=0.3,
-                max_tokens=200
+                max_tokens=200,
             )
 
-            content = response.choices[0].message.content.strip()
+            content = response.content.strip()
 
             # 解析 JSON
             if content.startswith("```"):

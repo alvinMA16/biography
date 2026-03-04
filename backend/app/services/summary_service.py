@@ -5,20 +5,13 @@
 """
 from typing import Optional, List, Tuple
 from sqlalchemy.orm import Session
-from openai import OpenAI
 import json
 
-from app.config import settings
 from app.models import Conversation, Message
+from app.services.llm_client import llm_chat
 
 
 class SummaryService:
-    def __init__(self):
-        self.client = OpenAI(
-            api_key=settings.dashscope_api_key,
-            base_url=settings.dashscope_base_url
-        )
-        self.model = settings.dashscope_model
 
     def generate_summary(self, db: Session, conversation_id: str) -> Tuple[Optional[str], Optional[List[str]]]:
         """
@@ -63,14 +56,8 @@ class SummaryService:
 """
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.3,
-                max_tokens=500
-            )
-
-            content = response.choices[0].message.content.strip()
+            response = llm_chat("summary", messages=[{"role": "user", "content": prompt}], temperature=0.3, max_tokens=500)
+            content = response.content.strip()
 
             # 解析 JSON
             # 处理可能的 markdown 代码块

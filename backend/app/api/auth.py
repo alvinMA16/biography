@@ -2,6 +2,7 @@
 import logging
 import secrets
 import string
+import time
 from datetime import datetime
 from typing import Optional, List
 
@@ -1362,3 +1363,110 @@ def admin_delete_preset_topic(
     _log_action(db, "delete_preset_topic", None, None,
                 f"删除预设话题：{topic_name}")
     return {"success": True}
+
+
+# ========== 管理员：LLM 健康监控 ==========
+
+
+@admin_router.get("/llm-models")
+def admin_list_llm_models(
+    _: None = Depends(verify_admin_key),
+):
+    """返回所有已配置的 LLM 模型列表"""
+    from app.config import settings
+    from app.services.llm_client import _MODULE_OVERRIDE, _resolve_provider
+
+    providers_info = {}
+
+    # DashScope（始终存在）
+    providers_info["dashscope"] = {
+        "main": settings.dashscope_model,
+        "fast": settings.dashscope_model_fast,
+        "api_key_set": bool(settings.dashscope_api_key),
+    }
+
+    # Gemini（有 api_key 才显示）
+    if settings.gemini_api_key:
+        providers_info["gemini"] = {
+            "main": settings.gemini_model,
+            "fast": settings.gemini_model_fast,
+            "api_key_set": True,
+        }
+
+    # 构建模块路由映射：哪些模块路由到了哪个 provider
+    module_routing = {}  # provider -> list of module names
+    for module_name in _MODULE_OVERRIDE:
+        provider = _resolve_provider(module_name)
+        module_routing.setdefault(provider, []).append(module_name)
+
+    # 构建结果
+    models = []
+    for provider_name, info in providers_info.items():
+        routed_modules = module_routing.get(provider_name, [])
+        for tier in ["main", "fast"]:
+            models.append({
+                "provider": provider_name,
+                "model": info[tier],
+                "tier": tier,
+                "modules": routed_modules,
+                "api_key_set": info["api_key_set"],
+            })
+
+    return {
+        "models": models,
+        "default_provider": settings.llm_provider_default,
+        "module_overrides": {
+            module: _resolve_provider(module) for module in _MODULE_OVERRIDE
+        },
+    }
+
+
+class HealthCheckRequest(BaseModel):
+    provider: str
+    model: str
+
+
+@admin_router.post("/llm-health-check")
+async def admin_llm_health_check(
+    req: HealthCheckRequest,
+    _: None = Depends(verify_admin_key),
+):
+    """测试单个 LLM 模型的连通性"""
+    from app.services.llm_client import _get_provider_instance
+
+    logger.info("[HealthCheck] 开始测试: provider=%s, model=%s", req.provider, req.model)
+    start = time.time()
+    try:
+        provider_instance = _get_provider_instance(req.provider)
+        resp = await provider_instance.achat(
+            req.model,
+            [{"role": "user", "content": "你好，请回复OK。"}],
+            max_tokens=20,
+            temperature=0,
+        )
+        latency_ms = round((time.time() - start) * 1000)
+        logger.info(
+            "[HealthCheck] 测试成功: provider=%s, model=%s, latency=%dms, response=%s",
+            req.provider, req.model, latency_ms, resp.content,
+        )
+        return {
+            "success": True,
+            "latency_ms": latency_ms,
+            "response_text": resp.content or "",
+            "error": None,
+        }
+    except Exception as e:
+        latency_ms = round((time.time() - start) * 1000)
+        logger.error(
+            "[HealthCheck] 测试失败: provider=%s, model=%s, latency=%dms, "
+            "error_type=%s, error=%s",
+            req.provider, req.model, latency_ms,
+            type(e).__name__, e,
+            exc_info=True,
+        )
+        return {
+            "success": False,
+            "latency_ms": latency_ms,
+            "response_text": None,
+            "error": str(e),
+        }

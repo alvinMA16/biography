@@ -1503,6 +1503,58 @@ body {
     color: #999;
 }
 
+.badge-error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* LLM 健康监控 */
+.llm-module-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    max-width: 220px;
+}
+
+.llm-status-error {
+    position: relative;
+    cursor: help;
+}
+
+.llm-error-tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.78em;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-width: 320px;
+    min-width: 120px;
+    z-index: 10;
+    line-height: 1.4;
+    box-shadow: 0 2px 8px rgba(0,0,0,.18);
+}
+
+.llm-error-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: #333;
+}
+
+.llm-status-error:hover .llm-error-tooltip {
+    display: block;
+}
+
 /* 表格行按钮 */
 .admin-btn {
     font-family: var(--font-sans);

@@ -53,6 +53,10 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
                         数据监控
                     </button>
+                    <button class="admin-nav-item" data-tab="llm-health" onclick="switchTab('llm-health')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                        API 健康监控
+                    </button>
                 </nav>
                 <div class="admin-sidebar-footer">
                     <button class="admin-nav-item admin-logout-btn" onclick="logout()">
@@ -620,6 +624,57 @@
                             </div>
                             <div class="admin-card-body" id="memoirListContainer">
                                 <div class="admin-empty-state">暂无回忆录</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- API 健康监控 Tab -->
+                <div id="tabLlmHealth" class="admin-tab-panel">
+                    <header class="admin-panel-header">
+                        <h1>API 健康监控</h1>
+                        <div style="display:flex;gap:8px;">
+                            <button class="admin-btn admin-btn-sm" onclick="testAllModels()">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                                全部测试
+                            </button>
+                            <button class="admin-btn admin-btn-sm" onclick="loadLlmModels()">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M23 4v6h-6M1 20v-6h6"/>
+                                    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                                </svg>
+                                刷新
+                            </button>
+                        </div>
+                    </header>
+                    <div class="admin-panel-content">
+                        <!-- 路由配置概览 -->
+                        <div class="admin-card" id="llmRoutingOverview" style="margin-bottom:20px;">
+                            <div class="admin-card-header"><h3>路由配置概览</h3></div>
+                            <div class="admin-card-body" id="llmRoutingBody">
+                                <div class="admin-empty-state">加载中...</div>
+                            </div>
+                        </div>
+                        <!-- 模型列表 -->
+                        <div class="admin-card">
+                            <div class="admin-card-header"><h3>模型列表</h3></div>
+                            <div class="admin-card-body" style="padding:0;">
+                                <table class="admin-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Provider</th>
+                                            <th>模型名称</th>
+                                            <th>路由模块</th>
+                                            <th>API Key</th>
+                                            <th>状态</th>
+                                            <th>延迟</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="llmHealthTableBody">
+                                        <tr><td colspan="7" class="admin-table-empty">加载中...</td></tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>

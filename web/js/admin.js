@@ -55,6 +55,9 @@ function logout() {
     sessionStorage.removeItem('adminKey');
     usersData = [];
     logsLoaded = false;
+    llmHealthLoaded = false;
+    llmModelsData = [];
+    llmTestResults = {};
     document.getElementById('mainSection').style.display = 'none';
     document.getElementById('authSection').style.display = 'flex';
     document.getElementById('adminKeyInput').value = '';
@@ -69,6 +72,9 @@ let welcomeMessagesLoaded = false;
 let presetTopicsLoaded = false;
 let monitoringLoaded = false;
 let monitoringData = null;
+let llmHealthLoaded = false;
+let llmModelsData = [];
+let llmTestResults = {};
 
 function switchTab(tab) {
     // 更新侧边栏选中态
@@ -96,6 +102,9 @@ function switchTab(tab) {
     } else if (tab === 'monitoring') {
         document.getElementById('tabMonitoring').classList.add('active');
         if (!monitoringLoaded) loadMonitoringData();
+    } else if (tab === 'llm-health') {
+        document.getElementById('tabLlmHealth').classList.add('active');
+        if (!llmHealthLoaded) loadLlmModels();
     }
 }
 
@@ -1390,6 +1399,134 @@ async function deletePresetTopic(id) {
     } catch (e) {
         alert('删除失败：' + e.message);
     }
+}
+
+// ========== LLM 健康监控 ==========
+
+async function loadLlmModels() {
+    try {
+        const data = await adminRequest('/admin/llm-models');
+        llmModelsData = data.models || [];
+        llmHealthLoaded = true;
+        llmTestResults = {};
+        renderLlmRoutingOverview(data);
+        renderLlmHealthTable(llmModelsData);
+    } catch (e) {
+        document.getElementById('llmHealthTableBody').innerHTML =
+            '<tr><td colspan="8" class="admin-table-empty">加载失败：' + escapeHtml(e.message) + '</td></tr>';
+    }
+}
+
+function renderLlmRoutingOverview(data) {
+    const body = document.getElementById('llmRoutingBody');
+    const overrides = data.module_overrides || {};
+    const defaultProvider = data.default_provider || 'dashscope';
+
+    const moduleNames = { memoir: '回忆录', summary: '摘要', topic: '话题', profile: '画像', intervention: '干预' };
+    const overrideHtml = Object.entries(overrides).map(([mod, prov]) => {
+        const isOverridden = prov !== defaultProvider;
+        return `<span class="admin-badge ${isOverridden ? 'badge-error' : 'badge-yes'}" style="margin:2px 4px;">${moduleNames[mod] || mod} → ${prov}</span>`;
+    }).join('');
+
+    body.innerHTML = `
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;">
+            <strong>默认 Provider：</strong>
+            <span class="admin-badge badge-yes">${escapeHtml(defaultProvider)}</span>
+            <span style="margin-left:16px;"><strong>模块路由：</strong></span>
+            ${overrideHtml}
+        </div>
+    `;
+}
+
+function renderLlmHealthTable(models) {
+    const tbody = document.getElementById('llmHealthTableBody');
+    if (!models.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="admin-table-empty">暂无模型配置</td></tr>';
+        return;
+    }
+    tbody.innerHTML = models.map((m) => {
+        const key = `${m.provider}:${m.model}:${m.tier}`;
+        const result = llmTestResults[key];
+        let statusHtml = '<span class="admin-badge badge-no">未测试</span>';
+        let latencyHtml = '-';
+        if (result) {
+            if (result.loading) {
+                statusHtml = '<span class="admin-badge badge-no">测试中...</span>';
+            } else if (result.success) {
+                statusHtml = '<span class="admin-badge badge-yes">正常</span>';
+                latencyHtml = result.latency_ms + ' ms';
+            } else {
+                const errText = escapeHtml(result.error || '未知错误');
+                statusHtml = `<span class="llm-status-error"><span class="admin-badge badge-error">异常</span><span class="llm-error-tooltip">${errText}</span></span>`;
+                latencyHtml = result.latency_ms + ' ms';
+            }
+        }
+        // 路由模块：flex 容器，每行最多 3 个
+        let modulesHtml = '<span style="color:#999;">-</span>';
+        if (m.modules.length) {
+            const badges = m.modules.map(mod => `<span class="admin-badge badge-no">${escapeHtml(mod)}</span>`).join('');
+            modulesHtml = `<div class="llm-module-tags">${badges}</div>`;
+        }
+        return `
+            <tr>
+                <td><strong>${escapeHtml(m.provider)}</strong></td>
+                <td><code>${escapeHtml(m.model)}</code></td>
+                <td>${modulesHtml}</td>
+                <td><span class="admin-badge ${m.api_key_set ? 'badge-yes' : 'badge-error'}">${m.api_key_set ? '已配置' : '未配置'}</span></td>
+                <td>${statusHtml}</td>
+                <td>${latencyHtml}</td>
+                <td>
+                    <button class="admin-btn admin-btn-sm" onclick="testSingleModel('${escapeHtml(m.provider)}','${escapeHtml(m.model)}','${escapeHtml(m.tier)}')" ${!m.api_key_set ? 'disabled title="API Key 未配置"' : ''}>测试</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+async function testSingleModel(provider, model, tier) {
+    const key = `${provider}:${model}:${tier}`;
+    llmTestResults[key] = { loading: true };
+    renderLlmHealthTable(llmModelsData);
+
+    try {
+        const result = await adminRequest('/admin/llm-health-check', {
+            method: 'POST',
+            body: JSON.stringify({ provider, model }),
+        });
+        llmTestResults[key] = result;
+    } catch (e) {
+        llmTestResults[key] = { success: false, latency_ms: 0, error: e.message };
+    }
+    renderLlmHealthTable(llmModelsData);
+}
+
+async function testAllModels() {
+    const testable = llmModelsData.filter(m => m.api_key_set);
+    if (!testable.length) {
+        alert('没有可测试的模型（API Key 均未配置）');
+        return;
+    }
+    // 标记所有为 loading
+    testable.forEach(m => {
+        const key = `${m.provider}:${m.model}:${m.tier}`;
+        llmTestResults[key] = { loading: true };
+    });
+    renderLlmHealthTable(llmModelsData);
+
+    // 并行测试
+    await Promise.allSettled(testable.map(async (m) => {
+        const key = `${m.provider}:${m.model}:${m.tier}`;
+        try {
+            const result = await adminRequest('/admin/llm-health-check', {
+                method: 'POST',
+                body: JSON.stringify({ provider: m.provider, model: m.model }),
+            });
+            llmTestResults[key] = result;
+        } catch (e) {
+            llmTestResults[key] = { success: false, latency_ms: 0, error: e.message };
+        }
+        renderLlmHealthTable(llmModelsData);
+    }));
 }
 
 // ========== 初始化 ==========

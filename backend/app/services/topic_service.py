@@ -8,21 +8,15 @@ import json
 import threading
 from typing import List, Optional, Dict
 from sqlalchemy.orm import Session
-from openai import OpenAI
 
 from app.config import settings
 from app.models import User, TopicCandidate, Memoir
 from app.models.user import PresetTopic
 from app.services.era_memory_service import era_memory_service
+from app.services.llm_client import llm_chat
 
 
 class TopicService:
-    def __init__(self):
-        self.client = OpenAI(
-            api_key=settings.dashscope_api_key,
-            base_url=settings.dashscope_base_url
-        )
-        self.model = settings.dashscope_model
 
     def get_topic_options(self, db: Session, user_id: str) -> List[Dict]:
         """获取用户的话题选项
@@ -118,14 +112,8 @@ class TopicService:
         )
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.8,
-                max_tokens=3000
-            )
-
-            content = response.choices[0].message.content.strip()
+            response = llm_chat("topic", messages=[{"role": "user", "content": prompt}], temperature=0.8, max_tokens=3000)
+            content = response.content.strip()
 
             # 处理可能的 markdown 代码块
             if content.startswith("```"):
@@ -219,14 +207,8 @@ class TopicService:
                     current_topics=current_topics
                 )
 
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.7,
-                    max_tokens=3000
-                )
-
-                content = response.choices[0].message.content.strip()
+                response = llm_chat("topic", messages=[{"role": "user", "content": prompt}], temperature=0.7, max_tokens=3000)
+                content = response.content.strip()
 
                 # 处理可能的 markdown 代码块
                 if content.startswith("```"):

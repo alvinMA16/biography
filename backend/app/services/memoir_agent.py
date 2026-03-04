@@ -4,8 +4,7 @@
 """
 import json
 from typing import Optional, List, Dict, Any
-from openai import OpenAI
-from app.config import settings
+from app.services.llm_client import llm_chat
 
 
 # Agent 可用的工具定义
@@ -175,11 +174,6 @@ class MemoirAgent:
     """回忆录生成 Agent"""
 
     def __init__(self):
-        self.client = OpenAI(
-            api_key=settings.dashscope_api_key,
-            base_url=settings.dashscope_base_url
-        )
-        self.model = settings.dashscope_model
         self.max_iterations = 10  # 最大迭代次数，防止无限循环
 
     def generate(self, transcript: str, perspective: str = "第一人称") -> str:
@@ -213,39 +207,37 @@ class MemoirAgent:
 
             try:
                 # 调用模型
-                response = self.client.chat.completions.create(
-                    model=self.model,
+                response = llm_chat(
+                    "memoir",
                     messages=messages,
                     tools=TOOLS,
                     tool_choice="auto",
                     temperature=0.7,
-                    max_tokens=4000
+                    max_tokens=4000,
                 )
 
-                assistant_message = response.choices[0].message
-
                 # 检查是否有工具调用
-                if assistant_message.tool_calls:
-                    # 处理工具调用
+                if response.tool_calls:
+                    # 构建 assistant message（用于追加到 messages）
                     messages.append({
                         "role": "assistant",
-                        "content": assistant_message.content,
+                        "content": response.content,
                         "tool_calls": [
                             {
                                 "id": tc.id,
                                 "type": "function",
                                 "function": {
-                                    "name": tc.function.name,
-                                    "arguments": tc.function.arguments
+                                    "name": tc.name,
+                                    "arguments": tc.arguments
                                 }
                             }
-                            for tc in assistant_message.tool_calls
+                            for tc in response.tool_calls
                         ]
                     })
 
-                    for tool_call in assistant_message.tool_calls:
-                        tool_name = tool_call.function.name
-                        tool_args = json.loads(tool_call.function.arguments)
+                    for tc in response.tool_calls:
+                        tool_name = tc.name
+                        tool_args = json.loads(tc.arguments)
 
                         print(f"[MemoirAgent] 调用工具: {tool_name}")
 
@@ -268,13 +260,13 @@ class MemoirAgent:
                         # 添加工具结果
                         messages.append({
                             "role": "tool",
-                            "tool_call_id": tool_call.id,
+                            "tool_call_id": tc.id,
                             "content": json.dumps(result, ensure_ascii=False)
                         })
 
                 else:
                     # 没有工具调用，可能是模型直接返回了内容
-                    content = assistant_message.content
+                    content = response.content
                     if content:
                         print(f"[MemoirAgent] 模型直接返回内容，共 {iteration} 轮")
                         return content

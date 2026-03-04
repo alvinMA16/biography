@@ -1,17 +1,8 @@
-from openai import OpenAI
 from typing import List, Dict, Generator
-from app.config import settings
+from app.services.llm_client import llm_chat, llm_chat_stream
 
 
 class LLMService:
-    def __init__(self):
-        self.client = OpenAI(
-            api_key=settings.dashscope_api_key,
-            base_url=settings.dashscope_base_url
-        )
-        self.model = settings.dashscope_model
-        self.model_fast = settings.dashscope_model_fast  # 快速模型
-
     def chat(self, messages: List[Dict[str, str]], system_prompt: str = None) -> str:
         """发送对话请求到大模型"""
         full_messages = []
@@ -21,14 +12,8 @@ class LLMService:
 
         full_messages.extend(messages)
 
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=full_messages,
-            temperature=0.8,
-            max_tokens=500
-        )
-
-        return response.choices[0].message.content
+        response = llm_chat("summary", messages=full_messages, temperature=0.8, max_tokens=500)
+        return response.content
 
     def chat_stream(self, messages: List[Dict[str, str]], system_prompt: str = None) -> Generator[str, None, None]:
         """流式对话请求"""
@@ -39,59 +24,31 @@ class LLMService:
 
         full_messages.extend(messages)
 
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=full_messages,
-            temperature=0.8,
-            max_tokens=500,
-            stream=True
-        )
-
-        for chunk in response:
-            if chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
+        yield from llm_chat_stream("summary", messages=full_messages, temperature=0.8, max_tokens=500)
 
     def generate_summary(self, conversation_text: str) -> str:
         """生成对话摘要"""
         from app.prompts import summary
 
         prompt = summary.build(conversation_text)
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
-            max_tokens=200
-        )
-
-        return response.choices[0].message.content
+        response = llm_chat("summary", messages=[{"role": "user", "content": prompt}], temperature=0.3, max_tokens=200)
+        return response.content
 
     def generate_memoir(self, conversation_text: str, perspective: str = "第一人称") -> str:
         """生成回忆录内容"""
         from app.prompts import memoir
 
         prompt = memoir.build(conversation_text, perspective)
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=2000
-        )
-
-        return response.choices[0].message.content
+        response = llm_chat("memoir", messages=[{"role": "user", "content": prompt}], temperature=0.7, max_tokens=2000)
+        return response.content
 
     def generate_title(self, conversation_text: str) -> str:
         """根据对话内容生成简练的标题"""
         from app.prompts import title
 
         prompt = title.build(conversation_text)
-        response = self.client.chat.completions.create(
-            model=self.model_fast,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=30
-        )
-
-        return response.choices[0].message.content.strip()
+        response = llm_chat("memoir", messages=[{"role": "user", "content": prompt}], fast=True, temperature=0.7, max_tokens=30)
+        return response.content.strip()
 
     def infer_time_period(self, conversation_text: str, birth_year: int = None) -> dict:
         """
@@ -110,14 +67,8 @@ class LLMService:
         prompt = time_period.build(conversation_text, birth_year)
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model_fast,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.1,
-                max_tokens=100
-            )
-
-            content = response.choices[0].message.content.strip()
+            response = llm_chat("memoir", messages=[{"role": "user", "content": prompt}], fast=True, temperature=0.1, max_tokens=100)
+            content = response.content.strip()
 
             # 处理可能的 markdown 代码块
             if content.startswith("```"):
@@ -144,14 +95,8 @@ class LLMService:
         prompt = profile_completion_check.build(conversation_text)
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model_fast,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.1,
-                max_tokens=50
-            )
-
-            content = response.choices[0].message.content.strip()
+            response = llm_chat("profile", messages=[{"role": "user", "content": prompt}], fast=True, temperature=0.1, max_tokens=50)
+            content = response.content.strip()
 
             # 处理可能的 markdown 代码块
             if content.startswith("```"):
@@ -172,15 +117,8 @@ class LLMService:
         from app.prompts import era_memories
 
         prompt = era_memories.build(birth_year, hometown, main_city)
-
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=2000
-        )
-
-        return response.choices[0].message.content
+        response = llm_chat("profile", messages=[{"role": "user", "content": prompt}], temperature=0.7, max_tokens=2000)
+        return response.content
 
 
 llm_service = LLMService()

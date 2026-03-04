@@ -6,10 +6,9 @@
 import json
 from typing import Optional, Dict
 from sqlalchemy.orm import Session
-from openai import OpenAI
 
-from app.config import settings
 from app.models import User, Conversation, Message
+from app.services.llm_client import llm_chat
 
 
 def auto_set_preferred_name(user):
@@ -29,12 +28,6 @@ def auto_set_preferred_name(user):
 
 
 class ProfileService:
-    def __init__(self):
-        self.client = OpenAI(
-            api_key=settings.dashscope_api_key,
-            base_url=settings.dashscope_base_url
-        )
-        self.model = settings.dashscope_model
 
     def extract_and_update_profile(self, db: Session, conversation_id: str, user_id: str) -> bool:
         """
@@ -71,14 +64,8 @@ class ProfileService:
         prompt = profile_extraction.build(conversation_text, nickname=user.nickname)
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.1,
-                max_tokens=200
-            )
-
-            content = response.choices[0].message.content.strip()
+            response = llm_chat("profile", messages=[{"role": "user", "content": prompt}], temperature=0.1, max_tokens=200)
+            content = response.content.strip()
 
             # 处理可能的 markdown 代码块
             if content.startswith("```"):

@@ -41,6 +41,23 @@ class Settings(BaseSettings):
     intervention_timeout_ms: int = 6000         # 干预判断超时（毫秒）- TTS结束后的沉默间隙执行
     intervention_model: str = "qwen-turbo"      # 干预判断用的模型（需要快，qwen3.5-plus太慢会超时）
 
+    # LLM Provider 路由
+    llm_provider_default: str = "dashscope"     # 全局默认 provider
+
+    # 模块级 override（空串 = 用全局默认）
+    llm_provider_memoir: str = ""
+    llm_provider_summary: str = ""
+    llm_provider_topic: str = ""
+    llm_provider_profile: str = ""
+    llm_provider_intervention: str = ""
+
+    # Gemini Provider（原生 SDK 直连）
+    gemini_api_key: str = ""
+    gemini_sock5_proxy: str = ""   # 同步调用代理（支持 socks5），如 socks5://127.0.0.1:1080
+    gemini_http_proxy: str = ""    # 异步调用代理（不支持 socks5），如 http://127.0.0.1:8118
+    gemini_model: str = "gemini-2.5-flash"
+    gemini_model_fast: str = "gemini-2.0-flash-lite"
+
     class Config:
         env_file = ".env"
 
