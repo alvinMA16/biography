@@ -191,7 +191,8 @@ class DoubaoClient:
             self.ws = await websockets.connect(
                 settings.doubao_ws_url,
                 extra_headers=headers,
-                ping_interval=None
+                ping_interval=20,
+                ping_timeout=20,
             )
 
             # StartConnection request
@@ -328,8 +329,12 @@ class DoubaoClient:
             request.extend(len(payload).to_bytes(4, 'big'))
             request.extend(payload)
             await self.ws.send(request)
+        except websockets.exceptions.ConnectionClosed:
+            print(f"[Doubao] 连接已关闭，停止发送音频")
+            self.is_connected = False
         except Exception as e:
             print(f"[Doubao] 发送音频失败: {e}")
+            self.is_connected = False
 
     async def say_hello(self, content: str = None) -> None:
         """发送开场白"""
@@ -505,10 +510,15 @@ class DoubaoClient:
 
         except asyncio.CancelledError:
             print("[Doubao] 接收循环已取消")
+        except websockets.exceptions.ConnectionClosed as e:
+            print(f"[Doubao] WebSocket 连接关闭: code={e.code}, reason={e.reason}")
         except Exception as e:
             print(f"[Doubao] 接收消息错误: {e}")
+            import traceback
+            traceback.print_exc()
         finally:
             self.is_connected = False
+            print("[Doubao] 接收循环结束，连接状态已重置")
 
     async def finish_session(self) -> None:
         """结束会话"""
