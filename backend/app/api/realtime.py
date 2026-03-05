@@ -1,6 +1,7 @@
 """
 实时对话 WebSocket API
 前端通过 WebSocket 连接，发送音频，接收音频和文本回复
+通过 DoubaoProxy 代理连接到独立的 Doubao Service 微服务
 """
 import asyncio
 import json
@@ -8,7 +9,7 @@ import base64
 from urllib.parse import parse_qs
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from app.services.doubao_realtime import DoubaoRealtimeClient
+from app.services.doubao_proxy import DoubaoProxy
 from app.database import SessionLocal
 from app.models import Message, User
 from app.auth import decode_token
@@ -252,8 +253,8 @@ async def realtime_dialog(websocket: WebSocket):
         # 对话中使用的称呼：优先用 preferred_name，否则用 nickname
         display_name = user_preferred_name or user_nickname
 
-        # 创建豆包客户端
-        client = DoubaoRealtimeClient(
+        # 创建豆包代理客户端（连接到 Doubao Service 微服务）
+        client = DoubaoProxy(
             speaker=speaker,
             recorder_name=recorder_name,
             mode=actual_mode,
@@ -423,7 +424,8 @@ async def realtime_preview(websocket: WebSocket):
             tts_done.set()
 
     try:
-        client = DoubaoRealtimeClient(
+        # 创建豆包代理客户端（用于 TTS 预览）
+        client = DoubaoProxy(
             speaker=speaker,
             on_audio=lambda data: asyncio.create_task(on_audio(data)),
             on_event=lambda e, p: asyncio.create_task(on_event(e, p)),

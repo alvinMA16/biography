@@ -17,12 +17,9 @@ class Settings(BaseSettings):
     aliyun_ak_secret: str = ""
     aliyun_nls_appkey: str = ""
 
-    # 豆包实时对话配置
-    doubao_app_id: str = ""
-    doubao_access_key: str = ""
-    doubao_ws_url: str = "wss://openspeech.bytedance.com/api/v3/realtime/dialogue"
-    doubao_speaker: str = "zh_female_xiaohe_jupiter_bigtts"  # 发音人
-    doubao_asr_silence_ms: int = 4000  # 静音检测时间，越长越不容易打断用户
+    # 豆包实时对话配置（通过 Doubao Service 微服务代理）
+    doubao_service_url: str = "ws://localhost:9000/ws"  # Doubao Service WebSocket 地址
+    doubao_speaker: str = "zh_female_xiaohe_jupiter_bigtts"  # 发音人（用于前端展示）
 
     # 认证配置
     jwt_secret: str = "change-me-in-production"

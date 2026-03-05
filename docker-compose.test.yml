@@ -31,11 +31,35 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  doubao:
+    build: ./doubao-service
+    restart: unless-stopped
+    expose:
+      - "9000"
+    environment:
+      DOUBAO_APP_ID: ${DOUBAO_APP_ID}
+      DOUBAO_ACCESS_KEY: ${DOUBAO_ACCESS_KEY}
+      DOUBAO_SPEAKER: ${DOUBAO_SPEAKER:-zh_female_xiaohe_jupiter_bigtts}
+      DOUBAO_ASR_SILENCE_MS: ${DOUBAO_ASR_SILENCE_MS:-4000}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   backend:
     build: ./backend
     restart: unless-stopped
     depends_on:
       db:
+        condition: service_healthy
+      doubao:
         condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -43,14 +67,12 @@ services:
       - "127.0.0.1:8002:8000"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-biography}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-biography_test}
+      DOUBAO_SERVICE_URL: ws://doubao:9000/ws
+      DOUBAO_SPEAKER: ${DOUBAO_SPEAKER:-zh_female_xiaohe_jupiter_bigtts}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY}
       DASHSCOPE_BASE_URL: ${DASHSCOPE_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
       DASHSCOPE_MODEL: ${DASHSCOPE_MODEL:-qwen-plus}
       DASHSCOPE_MODEL_FAST: ${DASHSCOPE_MODEL_FAST:-qwen-turbo}
-      DOUBAO_APP_ID: ${DOUBAO_APP_ID}
-      DOUBAO_ACCESS_KEY: ${DOUBAO_ACCESS_KEY}
-      DOUBAO_SPEAKER: ${DOUBAO_SPEAKER:-zh_female_xiaohe_jupiter_bigtts}
-      DOUBAO_ASR_SILENCE_MS: ${DOUBAO_ASR_SILENCE_MS:-4000}
       JWT_SECRET: ${JWT_SECRET:-test-jwt-secret}
       JWT_EXPIRE_DAYS: ${JWT_EXPIRE_DAYS:-30}
       ADMIN_API_KEY: ${ADMIN_API_KEY:-}

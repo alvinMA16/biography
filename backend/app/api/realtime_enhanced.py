@@ -1,6 +1,7 @@
 """
 实时对话 WebSocket API - 增强模式
 支持 dialog_context 预设示例 + 实时干预（预判断 + 即时注入）
+通过 DoubaoProxy 代理连接到独立的 Doubao Service 微服务
 """
 import asyncio
 import json
@@ -8,7 +9,7 @@ import base64
 from urllib.parse import parse_qs
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from app.services.doubao_realtime_enhanced import DoubaoRealtimeEnhancedClient
+from app.services.doubao_proxy import DoubaoProxy
 from app.services.intervention_service import intervention_service
 from app.database import SessionLocal
 from app.models import Message, User
@@ -271,39 +272,32 @@ async def realtime_dialog_enhanced(websocket: WebSocket):
 
                 current_response_text = ""
 
+            elif event == 459:  # ASR 结束 - 保存用户消息
+                if current_asr_text and conversation_id:
+                    save_message(conversation_id, "user", current_asr_text)
+                    recent_messages.append({
+                        "role": "user",
+                        "content": current_asr_text
+                    })
+                    if len(recent_messages) > 10:
+                        recent_messages = recent_messages[-10:]
+                    current_asr_text = ""
+
         except Exception as e:
             print(f"[Enhanced] 发送事件失败: {e}")
 
-    async def on_asr_ended(asr_text: str):
-        """ASR 结束 - 保存用户消息"""
-        nonlocal recent_messages
-
-        if not asr_text:
-            return
-
-        # 保存用户消息
-        if conversation_id:
-            save_message(conversation_id, "user", asr_text)
-
-        recent_messages.append({
-            "role": "user",
-            "content": asr_text
-        })
-        if len(recent_messages) > 10:
-            recent_messages = recent_messages[-10:]
-
     try:
-        # 创建增强版客户端
-        client = DoubaoRealtimeEnhancedClient(
+        # 创建豆包代理客户端（增强模式）
+        client = DoubaoProxy(
             speaker=speaker,
             recorder_name=recorder_name,
+            mode="enhanced",
             user_nickname=user_nickname,
             topic=custom_topic,
             era_memories=era_memories,
             on_audio=lambda data: asyncio.create_task(on_audio(data)),
             on_text=lambda t, c: asyncio.create_task(on_text(t, c)),
             on_event=lambda e, p: asyncio.create_task(on_event(e, p)),
-            on_asr_ended=lambda t: asyncio.create_task(on_asr_ended(t)),
         )
 
         # 连接
