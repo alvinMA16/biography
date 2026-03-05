@@ -191,8 +191,7 @@ class DoubaoClient:
             self.ws = await websockets.connect(
                 settings.doubao_ws_url,
                 extra_headers=headers,
-                ping_interval=20,
-                ping_timeout=20,
+                ping_interval=None,  # 豆包 API 不支持标准 WebSocket ping
             )
 
             # StartConnection request

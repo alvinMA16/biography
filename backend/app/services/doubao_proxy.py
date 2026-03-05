@@ -54,8 +54,7 @@ class DoubaoProxy:
 
             self.ws = await websockets.connect(
                 settings.doubao_service_url,
-                ping_interval=20,
-                ping_timeout=20,
+                ping_interval=None,  # FastAPI WebSocket 不需要客户端 ping
             )
 
             # 发送 init 消息
